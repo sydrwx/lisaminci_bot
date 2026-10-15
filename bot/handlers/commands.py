@@ -11,7 +11,7 @@ from telegram.ext import ContextTypes
 
 from bot import texts
 from bot.handlers.common import check_access
-from bot.messaging import describe_user
+from bot.messaging import describe_user, is_admin
 from bot.services import get_services
 
 log = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     msg = update.message
     user = update.effective_user
     chat_id = update.effective_chat.id
-    if not user or (user.username or "").lower() not in svc.settings.admin_usernames:
+    if not is_admin(user, svc.settings.admin_usernames):
         log.info("/delete отклонён: %s", describe_user(user))
         await svc.reply(msg, texts.DELETE_DENIED)
         return
