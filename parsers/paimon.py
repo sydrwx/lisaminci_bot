@@ -1,5 +1,5 @@
 """
-src_paimon.py — молитвы (баннеры) и события из paimon.moe
+parsers/paimon.py — молитвы (баннеры) и события из paimon.moe
 
 Данные paimon.moe лежат в его открытом репозитории (github.com/MadeBaruna/paimon-moe),
 сайт собирается из них. Берём:

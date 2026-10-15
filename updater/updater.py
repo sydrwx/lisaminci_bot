@@ -1,20 +1,20 @@
 """
-updater.py — обновление базы знаний ChromaDB: при старте и раз в сутки
+updater/updater.py — обновление базы знаний ChromaDB: при старте и раз в сутки
 
 Источники:
     wiki   — Genshin Impact Вики (Fandom, ru): статьи, включая данные инфобоксов;
     amber  — Project Amber (gi.yatta.moe): данные из файлов игры на русском —
-             персонажи (таланты, созвездия), оружие, артефакты (src_amber.py);
+             персонажи (таланты, созвездия), оружие, артефакты (parsers/amber.py);
     paimon — paimon.moe: молитвы и события; актуальные пишутся в state/banners.json
-             для бота, история — в базу (src_paimon.py);
+             для бота, история — в базу (parsers/paimon.py);
     tg     — настольная игра «Осквернённый Грааль»: правила (PDF), путеводитель,
-             лор — в отдельную коллекцию TG_COLLECTION (src_tg.py).
+             лор — в отдельную коллекцию TG_COLLECTION (parsers/tg.py).
 
 Режимы:
-    python updater.py                 # демон: синхронизация сразу и затем раз в сутки в UPDATE_TIME (UTC)
-    python updater.py --once          # одна синхронизация и выход
-    python updater.py --full          # то же, но вики — полностью
-    python updater.py --once --only amber paimon   # только выбранные источники
+    python -m updater.updater                 # демон: синхронизация сразу и затем раз в сутки в UPDATE_TIME (UTC)
+    python -m updater.updater --once          # одна синхронизация и выход
+    python -m updater.updater --full          # то же, но вики — полностью
+    python -m updater.updater --once --only amber paimon   # только выбранные источники
 
 Вики синхронизируется инкрементально по recentchanges MediaWiki API. Полная синхронизация
 через allpages — если прошлой не было, она старше RC_MAX_AGE_DAYS или сменилась
@@ -33,11 +33,9 @@ import hashlib
 
 import requests
 
-import src_amber
-import src_paimon
-import src_tg
-from db import COLLECTION, TG_COLLECTION, get_collection
-from xml_parser import clean_wikitext, chunk_article, MIN_LENGTH, BATCH_SIZE
+from parsers import amber as src_amber, paimon as src_paimon, tg as src_tg
+from common.db import COLLECTION, TG_COLLECTION, get_collection
+from parsers.wiki_xml import clean_wikitext, chunk_article, MIN_LENGTH, BATCH_SIZE
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",

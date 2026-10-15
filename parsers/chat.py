@@ -1,9 +1,9 @@
 """
-parser.py — Парсинг истории Telegram-группы и кластеризация по тематикам
+parsers/chat.py — Парсинг истории Telegram-группы и кластеризация по тематикам
 
 Использование:
     pip install telethon anthropic python-dotenv
-    python parser.py
+    python -m parsers.chat
 
 Результат: knowledge_base.json — структурированная база знаний по тематикам
 """
@@ -17,7 +17,7 @@ from telethon import TelegramClient
 from telethon.tl.types import Message
 import anthropic
 
-from ipcheck import check_ip
+from common.ipcheck import check_ip
 
 load_dotenv(override=False)
 
@@ -31,13 +31,13 @@ PHONE             = os.getenv("TG_PHONE")
 CHAT_TARGET       = os.getenv("TG_CHAT")
 ANTHROPIC_KEY     = os.getenv("ANTHROPIC_API_KEY")
 ANTHROPIC_PROXY   = os.getenv("ANTHROPIC_PROXY")  # HTTP-прокси только для Claude API
-OUTPUT_FILE       = "knowledge_base.json"
+OUTPUT_FILE       = "./data/knowledge_base.json"
 
 BATCH_SIZE   = 100
 MAX_MESSAGES = 5000  # 0 = без лимита
 # ─────────────────────────────────────────────────────────────────────────────
 
-client_tg = TelegramClient("session_parser", API_ID, API_HASH)
+client_tg = TelegramClient("./data/session_parser", API_ID, API_HASH)
 client_ai = anthropic.Anthropic(
     api_key=ANTHROPIC_KEY,
     base_url="https://api.anthropic.com",

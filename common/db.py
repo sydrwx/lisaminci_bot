@@ -1,5 +1,5 @@
 """
-db.py — общее подключение к ChromaDB для bot.py, updater.py и xml_parser.py
+common/db.py — общее подключение к ChromaDB для bot, updater и parsers/wiki_xml.py
 
 Если задан CHROMA_HOST — подключение к Chroma-серверу (docker-compose),
 иначе — локальная база в ./chroma_db.
