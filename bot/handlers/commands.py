@@ -51,7 +51,7 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         except TelegramError as e:
             # уже удалено вручную или старше 48 ч — пробуем предыдущее
             log.warning("/delete: сообщение %s не удалено: %s", message_id, e)
-    svc.sent.save()
+    await svc.sent.save(chat_id)
 
     # Саму команду тоже убираем (в группе — если у бота есть право удалять сообщения)
     with contextlib.suppress(TelegramError):

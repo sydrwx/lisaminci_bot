@@ -46,7 +46,6 @@ services:
     volumes:
       - ./.cache:/root/.cache
       - ./state:/app/state:ro  # banners.json от updater
-      - ./botdata:/app/botdata  # id отправленных сообщений для /delete
     command: python -m bot
 
   updater:

@@ -11,7 +11,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from bot.storage import load_json, save_json
+from bot.storage import StateStore
 
 HARD_PITY = 90
 SOFT_PITY = 74
@@ -71,26 +71,25 @@ def roll_once(st: dict, banner: dict, bonus: bool, rng: random.Random | None = N
 
 
 class PrayStore:
-    """Счётчики и статистика молитв по пользователям (botdata/pray.json)."""
+    """Счётчики и статистика молитв по пользователям (записи вида «pray» в базе)."""
 
-    def __init__(self, path: str, bonus_users: Collection[str] = ()):
-        self.path = path
+    KIND = "pray"
+
+    def __init__(self, store: StateStore, bonus_users: Collection[str] = ()):
+        self.store = store
         self.bonus_users = bonus_users
-        self.state: dict[str, dict] = load_json(path, {})
+        self.state: dict[str, dict] = store.load_all(self.KIND)
         # Записи до появления статистики: 5★ ещё не было, значит всего молитв = счётчик гарантии;
         # по логам до статистики выпадали 3★
         for st in self.state.values():
             st.setdefault("total", st.get("pity5", 0))
             st.setdefault("stats", {"3": st["total"]} if st["total"] else {})
 
-    def save(self) -> None:
-        save_json(self.path, self.state)
-
     def user(self, user_id: int) -> dict | None:
         return self.state.get(str(user_id))
 
     def roll(self, user_id: int, username: str, banner: dict) -> Wish:
-        """Молитва пользователя с обновлением статистики и сохранением в файл."""
+        """Молитва пользователя с обновлением статистики (сохранить — save_user)."""
         st = self.state.setdefault(str(user_id), new_user_state())
         now = datetime.now(UTC).isoformat(timespec="seconds")
         st["username"] = username
@@ -100,8 +99,10 @@ class PrayStore:
         wish = roll_once(st, banner, bonus=username.lower() in self.bonus_users)
         stats = st.setdefault("stats", {})
         stats[wish.rarity] = stats.get(wish.rarity, 0) + 1
-        self.save()
         return wish
+
+    async def save_user(self, user_id: int) -> None:
+        await self.store.save(self.KIND, str(user_id), self.state[str(user_id)])
 
 
 def format_rating(state: dict[str, dict], user_id: int, limit: int = 15) -> str:

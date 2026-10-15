@@ -30,6 +30,7 @@ async def cmd_pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user = update.effective_user
     wish = svc.pray.roll(user.id, user.username or "", banner)
+    await svc.pray.save_user(user.id)
     total = svc.pray.user(user.id)["total"]
     text = random.choice(texts.PRAY_TEMPLATES[wish.rarity]).format(
         user=mention(user), item=wish.item, n=wish.n, left=wish.left)

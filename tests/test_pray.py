@@ -1,6 +1,9 @@
+import asyncio
 import random
 
 from bot.pray import HARD_PITY, PrayStore, format_rating, new_user_state, roll_once
+from bot.storage import StateStore
+from tests.fakes import FakeCollection
 
 BANNER = {"name": "Тест", "featured": ["Фурина"], "featured_rare": ["Беннет"]}
 
@@ -50,13 +53,14 @@ def test_never_exceeds_hard_pity():
         assert st["pity5"] < HARD_PITY
 
 
-def test_store_roll_persists_and_migrates(tmp_path):
-    path = tmp_path / "pray.json"
-    path.write_text('{"1": {"pity5": 5, "pity4": 2, "guaranteed": false}}', encoding="utf-8")
-    store = PrayStore(str(path), bonus_users=set())
+def test_store_roll_persists_and_migrates():
+    db = StateStore(FakeCollection())
+    db.put("pray", "1", {"pity5": 5, "pity4": 2, "guaranteed": False})
+    store = PrayStore(db)
     assert store.user(1)["total"] == 5 and store.user(1)["stats"] == {"3": 5}
     store.roll(2, "lisa", BANNER)
-    assert PrayStore(str(path)).user(2)["total"] == 1
+    asyncio.run(store.save_user(2))
+    assert PrayStore(db).user(2)["total"] == 1
 
 
 def test_rating_order():

@@ -38,8 +38,7 @@ class Settings:
 
     kb_file: str                       # данные из чата (parsers/chat.py), опционально
     banners_file: str                  # молитвы и события, пишет updater (paimon.moe)
-    sent_file: str                     # id отправленных сообщений для /delete
-    pray_file: str                     # счётчики гарантии /pray
+    state_collection: str              # коллекция Chroma: молитвы и id сообщений для /delete
     private_prompt_file: str           # кто есть кто в чате, вне git
 
     allowed_chats: frozenset[int]      # где Лиза отвечает; в личке — участникам этих чатов
@@ -68,8 +67,7 @@ class Settings:
             anthropic_proxy=env("ANTHROPIC_PROXY") or None,
             kb_file="./data/knowledge_base.json",
             banners_file=env("BANNERS_FILE", "./state/banners.json"),
-            sent_file=env("SENT_FILE", "./botdata/sent_messages.json"),
-            pray_file=env("PRAY_FILE", "./botdata/pray.json"),
+            state_collection=env("BOT_STATE_COLLECTION", "bot_state"),
             private_prompt_file=env("PRIVATE_PROMPT_FILE", "./data/prompt_private.txt"),
             allowed_chats=_ids(env("ALLOWED_CHATS", env("TG_CHAT", ""))),
             tg_priority_chats=_ids(env("TG_PRIORITY_CHATS", "")),

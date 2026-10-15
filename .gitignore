@@ -9,7 +9,6 @@
 chroma_db/
 chroma_db.bak-*/
 state/
-botdata/
 knowledge_base.json
 
 # ── Исходные данные, не для репозитория ──────────────────────────────────────

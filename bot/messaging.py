@@ -9,7 +9,7 @@ from telegram import Message, User
 from telegram.error import BadRequest, NetworkError
 
 from bot.config import MAX_TRACKED
-from bot.storage import load_json, save_json
+from bot.storage import StateStore
 
 log = logging.getLogger(__name__)
 
@@ -20,27 +20,30 @@ class SentMessages:
     """id сообщений бота по чатам.
 
     Telegram не отдаёт боту список его сообщений, поэтому id запоминаются сами
-    и сохраняются в файл — /delete работает и после перезапуска (если сообщению < 48 ч).
+    и сохраняются в базу (записи вида «sent», по чату) — /delete работает и после
+    перезапуска (если сообщению < 48 ч).
     """
 
-    def __init__(self, path: str, max_per_chat: int = MAX_TRACKED):
-        self.path = path
-        self.max_per_chat = max_per_chat
-        self._ids: dict[str, list[int]] = load_json(path, {})
+    KIND = "sent"
 
-    def track(self, message: Message) -> None:
+    def __init__(self, store: StateStore, max_per_chat: int = MAX_TRACKED):
+        self.store = store
+        self.max_per_chat = max_per_chat
+        self._ids: dict[str, list[int]] = store.load_all(self.KIND)
+
+    async def track(self, message: Message) -> None:
         ids = self._ids.setdefault(str(message.chat_id), [])
         ids.append(message.message_id)
         del ids[:-self.max_per_chat]
-        self.save()
+        await self.save(message.chat_id)
 
     def pop(self, chat_id: int) -> int | None:
         """Забрать id последнего сообщения бота в чате (без сохранения — вызовите save)."""
         ids = self._ids.get(str(chat_id))
         return ids.pop() if ids else None
 
-    def save(self) -> None:
-        save_json(self.path, self._ids)
+    async def save(self, chat_id: int) -> None:
+        await self.store.save(self.KIND, str(chat_id), self._ids.get(str(chat_id), []))
 
 
 async def send_reply(msg: Message, text: str, sent: SentMessages | None = None,
@@ -61,7 +64,7 @@ async def send_reply(msg: Message, text: str, sent: SentMessages | None = None,
             await asyncio.sleep(delay)
         else:
             if sent is not None and reply is not None:
-                sent.track(reply)
+                await sent.track(reply)
             return reply
     return None
 
