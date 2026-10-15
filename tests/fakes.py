@@ -9,6 +9,7 @@ class FakeCollection:
         for id_, doc, meta in zip(ids, documents, metadatas, strict=True):
             self.rows[id_] = (doc, meta)
 
-    def get(self, where, include):
-        items = [(i, d) for i, (d, m) in self.rows.items() if m["kind"] == where["kind"]]
+    def get(self, include, ids=None, where=None):
+        items = [(i, d) for i, (d, m) in self.rows.items()
+                 if (ids is None or i in ids) and (where is None or m["kind"] == where["kind"])]
         return {"ids": [i for i, _ in items], "documents": [d for _, d in items]}

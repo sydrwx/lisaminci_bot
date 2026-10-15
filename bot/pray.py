@@ -11,7 +11,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from bot.storage import StateStore
+from common.state import StateStore
 
 HARD_PITY = 90
 SOFT_PITY = 74

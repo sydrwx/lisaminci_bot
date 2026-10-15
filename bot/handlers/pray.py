@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 
@@ -23,7 +24,7 @@ async def cmd_pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await svc.reply(msg, texts.PRAY_WRONG_CHAT)
         return
 
-    banner = svc.banners.current_character_banner()
+    banner = await asyncio.to_thread(svc.banners.current_character_banner)
     if not banner:
         await svc.reply(msg, texts.PRAY_NO_BANNER)
         return

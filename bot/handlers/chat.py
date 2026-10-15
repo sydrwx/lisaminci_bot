@@ -52,7 +52,8 @@ async def gather_context(svc: Services, topic: Topic, query: str, chat_id: int) 
             info += "\n" + texts.TG_CHAT_NOTE
         return context_text, info
     context_text = await asyncio.to_thread(svc.retriever.genshin, query)
-    return context_text, current_game_info(svc.banners.load())  # молитвы/события Genshin
+    banners = await asyncio.to_thread(svc.banners.load)
+    return context_text, current_game_info(banners)  # молитвы/события Genshin
 
 
 async def ask_claude(svc: Services, history: list[dict], question: str, context_text: str,

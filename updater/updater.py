@@ -5,7 +5,7 @@ updater/updater.py — обновление базы знаний ChromaDB: пр
     wiki   — Genshin Impact Вики (Fandom, ru): статьи, включая данные инфобоксов;
     amber  — Project Amber (gi.yatta.moe): данные из файлов игры на русском —
              персонажи (таланты, созвездия), оружие, артефакты (parsers/amber.py);
-    paimon — paimon.moe: молитвы и события; актуальные пишутся в state/banners.json
+    paimon — paimon.moe: молитвы и события; актуальные — в базу (banners:current)
              для бота, история — в базу (parsers/paimon.py);
     tg     — настольная игра «Осквернённый Грааль»: правила (PDF), путеводитель,
              лор — в отдельную коллекцию TG_COLLECTION (parsers/tg.py).
@@ -23,7 +23,6 @@ updater/updater.py — обновление базы знаний ChromaDB: пр
 
 import os
 import sys
-import json
 import time
 import logging
 import argparse
@@ -35,6 +34,7 @@ import requests
 
 from parsers import amber as src_amber, paimon as src_paimon, tg as src_tg
 from common.db import COLLECTION, TG_COLLECTION, get_collection
+from common.state import StateStore
 from parsers.wiki_xml import clean_wikitext, chunk_article, MIN_LENGTH, BATCH_SIZE
 
 logging.basicConfig(
@@ -46,12 +46,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # ─── Конфигурация ────────────────────────────────────────────────────────────
 WIKI_API        = os.getenv("WIKI_API", "https://genshin-impact.fandom.com/ru/api.php")
-# Отдельное состояние на коллекцию: новая коллекция начинается с полной синхронизации
-STATE_FILE      = os.getenv("STATE_FILE", f"./state/updater_state_{COLLECTION}.json")
 UPDATE_TIME     = os.getenv("UPDATE_TIME", "01:00")       # HH:MM, UTC (04:00 МСК)
 RETRY_MINUTES   = int(os.getenv("RETRY_MINUTES", "60"))   # повтор после ошибки
 RC_MAX_AGE_DAYS = int(os.getenv("RC_MAX_AGE_DAYS", "30"))
-BANNERS_FILE    = os.getenv("BANNERS_FILE", "./state/banners.json")
 WIKI_SCHEMA     = 2  # версия обработки статей; при изменении — полная пересинхронизация вики
 SOURCES         = ("wiki", "amber", "paimon", "tg")
 REQUEST_DELAY   = 0.3  # пауза между запросами к API, сек
@@ -66,24 +63,17 @@ session.headers["User-Agent"] = USER_AGENT
 #  Состояние
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def load_state() -> dict:
+# Хранится в той же базе, что и данные: восстановили базу из бэкапа или пересоздали её —
+# состояние откатилось вместе с ней, и пустая база начинается с полной синхронизации.
+# Отдельное состояние на коллекцию: новая коллекция тоже начинается с полной синхронизации.
+
+def load_state(store: StateStore) -> dict:
     """{источник: {"last_sync": iso, "stats": {...}, ...}}."""
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            state = json.load(f)
-    except (FileNotFoundError, ValueError):
-        return {}
-    if "last_sync" in state:  # старый формат: только вики
-        return {"wiki": {"last_sync": state["last_sync"], "schema": 1}}
-    return state
+    return store.get("updater", COLLECTION, {})
 
 
-def save_state(state: dict):
-    os.makedirs(os.path.dirname(STATE_FILE) or ".", exist_ok=True)
-    tmp = STATE_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, STATE_FILE)
+def save_state(store: StateStore, state: dict):
+    store.put("updater", COLLECTION, state)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -321,9 +311,12 @@ def sync_docs(collection, source: str, docs: list[dict]) -> dict:
 
 def sync(force_full: bool = False, only: tuple[str, ...] = SOURCES):
     """Обновить выбранные источники. Ошибка одного не мешает остальным; в конце — исключение."""
-    state = load_state()
+    store = StateStore.connect()
+    state = load_state(store)
     collection = get_collection(create=True)
     before = collection.count()
+    if before == 0 and state.pop("wiki", None):
+        log.info("Коллекция %s пуста — вики будет загружена полностью", COLLECTION)
     failed = []
 
     for source in only:
@@ -335,14 +328,15 @@ def sync(force_full: bool = False, only: tuple[str, ...] = SOURCES):
                 stats = sync_docs(collection, "amber", src_amber.collect())
                 state["amber"] = {"last_sync": started.isoformat(), "stats": stats}
             elif source == "paimon":
-                os.makedirs(os.path.dirname(BANNERS_FILE) or ".", exist_ok=True)
-                stats = sync_docs(collection, "paimon", src_paimon.collect(BANNERS_FILE))
+                banners, docs = src_paimon.collect()
+                store.put("banners", "current", banners)  # молитвы и события «сейчас» для бота
+                stats = sync_docs(collection, "paimon", docs)
                 state["paimon"] = {"last_sync": started.isoformat(), "stats": stats}
             elif source == "tg":
                 tg = get_collection(create=True, name=TG_COLLECTION)
                 stats = sync_docs(tg, "tg", src_tg.collect())
                 state["tg"] = {"last_sync": started.isoformat(), "stats": stats}
-            save_state(state)
+            save_state(store, state)
         except Exception:
             log.exception(f"{source}: синхронизация не удалась")
             failed.append(source)

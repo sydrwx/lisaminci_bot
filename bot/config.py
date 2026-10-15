@@ -37,8 +37,6 @@ class Settings:
     anthropic_proxy: str | None        # HTTP-прокси только для Claude API
 
     kb_file: str                       # данные из чата (parsers/chat.py), опционально
-    banners_file: str                  # молитвы и события, пишет updater (paimon.moe)
-    state_collection: str              # коллекция Chroma: молитвы и id сообщений для /delete
     private_prompt_file: str           # кто есть кто в чате, вне git
 
     allowed_chats: frozenset[int]      # где Лиза отвечает; в личке — участникам этих чатов
@@ -66,8 +64,6 @@ class Settings:
             claude_model=env("CLAUDE_MODEL", "claude-sonnet-4-5"),
             anthropic_proxy=env("ANTHROPIC_PROXY") or None,
             kb_file="./data/knowledge_base.json",
-            banners_file=env("BANNERS_FILE", "./state/banners.json"),
-            state_collection=env("BOT_STATE_COLLECTION", "bot_state"),
             private_prompt_file=env("PRIVATE_PROMPT_FILE", "./data/prompt_private.txt"),
             allowed_chats=_ids(env("ALLOWED_CHATS", env("TG_CHAT", ""))),
             tg_priority_chats=_ids(env("TG_PRIORITY_CHATS", "")),

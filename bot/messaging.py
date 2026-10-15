@@ -9,7 +9,7 @@ from telegram import Message, User
 from telegram.error import BadRequest, NetworkError
 
 from bot.config import MAX_TRACKED
-from bot.storage import StateStore
+from common.state import StateStore
 
 log = logging.getLogger(__name__)
 

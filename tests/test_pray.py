@@ -2,7 +2,7 @@ import asyncio
 import random
 
 from bot.pray import HARD_PITY, PrayStore, format_rating, new_user_state, roll_once
-from bot.storage import StateStore
+from common.state import StateStore
 from tests.fakes import FakeCollection
 
 BANNER = {"name": "Тест", "featured": ["Фурина"], "featured_rare": ["Беннет"]}
