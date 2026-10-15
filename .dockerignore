@@ -1,0 +1,16 @@
+.venv
+.cache
+cache
+chroma_db
+chroma_db.bak-*
+state
+*.xml
+*.session
+*.session-journal
+titles.txt
+.env
+.env.bak-*
+__pycache__
+botdata
+*.pdf
+tainted_grail

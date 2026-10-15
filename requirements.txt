@@ -1,0 +1,25 @@
+# Telegram
+python-telegram-bot==22.7
+
+# Anthropic
+anthropic==0.101.0
+
+# ChromaDB (встроенные ONNX embeddings, без torch). Версия должна совпадать с образом chromadb/chroma
+chromadb==1.5.9
+
+# Вики-парсинг
+mwparserfromhell
+
+# Многоязычные эмбеддинги (ONNX, без torch)
+fastembed
+
+# Telegram user API (для parser.py)
+telethon==1.43.2
+
+# Утилиты
+python-dotenv
+requests
+json5
+
+# PDF правил Tainted Grail
+pypdf

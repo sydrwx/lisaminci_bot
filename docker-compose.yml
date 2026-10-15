@@ -1,0 +1,72 @@
+# ANTHROPIC_API_KEY берётся из окружения хоста (~/.bashrc).
+# ANTHROPIC_PROXY, ALLOWED_SUBNET и др. — из .env (compose подставляет его автоматически), см. .env.example.
+# Claude API ходит через HTTP-прокси ANTHROPIC_PROXY (пустое значение — напрямую).
+# Автозапуск отключён (restart: "no"): контейнеры поднимаются только вручную.
+# ipcheck запускается первым и проверяет внешний IP через ANTHROPIC_PROXY: вне ALLOWED_SUBNET
+# он падает, и бот не стартует. Бот перепроверяет IP каждые IP_CHECK_INTERVAL секунд и при
+# выходе из подсети не падает, а отвечает «Акаша недоступен», не обращаясь к Claude.
+
+services:
+  chroma:
+    image: chromadb/chroma:1.5.9
+    container_name: genshin_chroma
+    restart: "no"
+    volumes:
+      - ./chroma_db:/data
+
+  ipcheck:
+    build: .
+    image: genshin_bot
+    container_name: genshin_ipcheck
+    restart: "no"
+    environment:
+      ALLOWED_SUBNET: ${ALLOWED_SUBNET:?ALLOWED_SUBNET не задан в .env}
+      ANTHROPIC_PROXY: ${ANTHROPIC_PROXY:-}
+    command: python ipcheck.py
+
+  bot:
+    build: .
+    image: genshin_bot
+    container_name: genshin_bot
+    restart: "no"
+    depends_on:
+      chroma:
+        condition: service_started
+      ipcheck:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY не задан, выполни source ~/.bashrc}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5}
+      ANTHROPIC_PROXY: ${ANTHROPIC_PROXY:-}
+      CHROMA_HOST: chroma
+      ALLOWED_SUBNET: ${ALLOWED_SUBNET:?ALLOWED_SUBNET не задан в .env}
+      IP_CHECK_INTERVAL: ${IP_CHECK_INTERVAL:-300}
+    volumes:
+      - ./.cache:/root/.cache
+      - ./state:/app/state:ro  # banners.json от updater
+      - ./botdata:/app/botdata  # id отправленных сообщений для /delete
+    command: python bot.py
+
+  updater:
+    build: .
+    image: genshin_bot
+    container_name: genshin_updater
+    restart: "no"
+    depends_on:
+      - chroma
+    environment:
+      CHROMA_HOST: chroma
+      UPDATE_TIME: ${UPDATE_TIME:-01:00}  # UTC, 04:00 МСК
+    volumes:
+      - ./.cache:/root/.cache
+      - ./state:/app/state
+      - ./tainted_grail:/app/tainted_grail:ro  # PDF правил «Осквернённого Грааля»
+    command: python updater.py
+
+networks:
+  default:
+    driver_opts:
+      # Часть трафика хоста идёт через VPN (vpn0, MTU 1354): с MTU 1500 TLS к GitHub зависает
+      com.docker.network.driver.mtu: "1350"
