@@ -40,6 +40,7 @@ class Settings:
     private_prompt_file: str           # кто есть кто в чате, вне git
 
     allowed_chats: frozenset[int]      # где Лиза отвечает; в личке — участникам этих чатов
+    allowed_users: frozenset[int]      # кому ещё открыта личка (id пользователей)
     tg_priority_chats: frozenset[int]  # где по умолчанию обсуждают «Осквернённый Грааль»
     admin_usernames: frozenset[str]    # кому разрешено /delete
     pray_chat_id: int                  # где работают /pray и /praystats (0 — нигде)
@@ -66,6 +67,7 @@ class Settings:
             kb_file="./data/knowledge_base.json",
             private_prompt_file=env("PRIVATE_PROMPT_FILE", "./data/prompt_private.txt"),
             allowed_chats=_ids(env("ALLOWED_CHATS", env("TG_CHAT", ""))),
+            allowed_users=_ids(env("ALLOWED_USERS", "")),
             tg_priority_chats=_ids(env("TG_PRIORITY_CHATS", "")),
             admin_usernames=_usernames(env("ADMIN_USERNAMES", "")),
             pray_chat_id=int(env("PRAY_CHAT_ID", "0")),

@@ -16,7 +16,7 @@ from bot import texts
 from bot.config import MAX_TOKENS
 from bot.game_info import current_game_info, today_info
 from bot.handlers.common import check_access
-from bot.messaging import describe_user, is_addressed_to_bot
+from bot.messaging import describe_user, is_addressed_to_bot, is_admin, prompt_user
 from bot.prompt import build_messages
 from bot.services import Services, get_services
 from bot.topics import Topic, detect_topic
@@ -32,11 +32,11 @@ def strip_bot_mention(text: str, bot_username: str | None) -> str:
 
 def question_header(msg: Message, bot_id: int) -> str:
     """Кто пишет и, если это ответ на чужое сообщение (не бота), — о ком и о чём речь."""
-    header = f"Пишет: {describe_user(msg.from_user)}"
+    header = f"Пишет: {prompt_user(msg.from_user)}"
     reply = msg.reply_to_message
     if reply and reply.from_user and reply.from_user.id != bot_id:
         reply_text = (reply.text or reply.caption or "").strip()
-        header += f"\nОтвет на сообщение {describe_user(reply.from_user)}"
+        header += f"\nОтвет на сообщение {prompt_user(reply.from_user)}"
         if reply_text:
             header += f": «{reply_text[:500]}»"
     return header
@@ -57,11 +57,11 @@ async def gather_context(svc: Services, topic: Topic, query: str, chat_id: int) 
 
 
 async def ask_claude(svc: Services, history: list[dict], question: str, context_text: str,
-                     info: str) -> str:
+                     info: str, admin: bool = False) -> str:
     response = await svc.claude.messages.create(
         model=svc.settings.claude_model,
         max_tokens=MAX_TOKENS,
-        system=svc.system,
+        system=svc.system_admin if admin else svc.system,
         messages=build_messages(history, question, context_text, info),
     )
     u = response.usage
@@ -106,7 +106,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                              svc.settings.tg_priority_chats,
                              lambda q: bool(svc.title_index.find(q)))
         context_text, info = await gather_context(svc, topic, query, chat_id)
-        answer = await ask_claude(svc, svc.dialogs.history(key), question, context_text, info)
+        admin = is_admin(update.effective_user, svc.settings.admin_usernames)
+        answer = await ask_claude(svc, svc.dialogs.history(key), question, context_text, info, admin)
         svc.dialogs.remember(key, question, answer, topic)
         await svc.reply(msg, answer)
     except anthropic.APIConnectionError as e:

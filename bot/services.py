@@ -32,6 +32,7 @@ class Services:
     settings: Settings
     claude: anthropic.AsyncAnthropic
     system: list[dict]          # системный промпт (блоки с cache_control)
+    system_admin: list[dict]    # то же с пометкой «пишет администратор»
     collection: object          # коллекция Genshin в Chroma
     title_index: TitleIndex
     retriever: Retriever
@@ -98,6 +99,7 @@ def build_services(settings: Settings) -> Services:
         settings=settings,
         claude=claude,
         system=prompt.system_blocks(system_prompt),
+        system_admin=prompt.system_blocks(system_prompt, admin=True),
         collection=collection,
         title_index=title_index,
         retriever=retriever,
@@ -105,6 +107,6 @@ def build_services(settings: Settings) -> Services:
         dialogs=Dialogs(),
         sent=SentMessages(state),
         pray=PrayStore(state, settings.pray_bonus_users),
-        access=Access(settings.allowed_chats),
+        access=Access(settings.allowed_chats, settings.allowed_users),
         akasha=akasha,
     )
