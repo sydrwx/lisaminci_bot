@@ -38,6 +38,7 @@ class Settings:
 
     kb_file: str                       # данные из чата (parsers/chat.py), опционально
     private_prompt_file: str           # кто есть кто в чате, вне git
+    admin_prompt_file: str             # пометка «пишет администратор», вне git
 
     allowed_chats: frozenset[int]      # где Лиза отвечает; в личке — участникам этих чатов
     allowed_users: frozenset[int]      # кому ещё открыта личка (id пользователей)
@@ -66,6 +67,7 @@ class Settings:
             anthropic_proxy=env("ANTHROPIC_PROXY") or None,
             kb_file="./data/knowledge_base.json",
             private_prompt_file=env("PRIVATE_PROMPT_FILE", "./data/prompt_private.txt"),
+            admin_prompt_file=env("ADMIN_PROMPT_FILE", "./data/prompt_admin.txt"),
             allowed_chats=_ids(env("ALLOWED_CHATS", env("TG_CHAT", ""))),
             allowed_users=_ids(env("ALLOWED_USERS", "")),
             tg_priority_chats=_ids(env("TG_PRIORITY_CHATS", "")),

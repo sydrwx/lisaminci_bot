@@ -99,7 +99,7 @@ def build_services(settings: Settings) -> Services:
         settings=settings,
         claude=claude,
         system=prompt.system_blocks(system_prompt),
-        system_admin=prompt.system_blocks(system_prompt, admin=True),
+        system_admin=prompt.system_blocks(system_prompt, prompt.load_admin_note(settings.admin_prompt_file)),
         collection=collection,
         title_index=title_index,
         retriever=retriever,
