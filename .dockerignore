@@ -4,13 +4,15 @@ cache
 chroma_db
 chroma_db.bak-*
 state
-*.xml
-*.session
-*.session-journal
-titles.txt
+data/tainted_grail
 .env
 .env.bak-*
-__pycache__
-botdata
-*.pdf
-tainted_grail
+# шаблоны без **/ в .dockerignore действуют только в корне
+**/*.xml
+**/*.session
+**/*.session-journal
+**/titles.txt
+**/__pycache__
+**/*.pdf
+tests
+.pytest_cache

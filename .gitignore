@@ -9,7 +9,6 @@
 chroma_db/
 chroma_db.bak-*/
 state/
-botdata/
 knowledge_base.json
 
 # ── Исходные данные, не для репозитория ──────────────────────────────────────
@@ -25,6 +24,7 @@ tainted_grail/
 cache/
 .venv/
 __pycache__/
+.pytest_cache/
 *.pyc
 
 # ── Персональная часть промпта ──────────────────────────────────────────────

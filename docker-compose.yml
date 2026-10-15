@@ -22,7 +22,7 @@ services:
     environment:
       ALLOWED_SUBNET: ${ALLOWED_SUBNET:?ALLOWED_SUBNET не задан в .env}
       ANTHROPIC_PROXY: ${ANTHROPIC_PROXY:-}
-    command: python ipcheck.py
+    command: python -m common.ipcheck
 
   bot:
     build: .
@@ -46,8 +46,7 @@ services:
     volumes:
       - ./.cache:/root/.cache
       - ./state:/app/state:ro  # banners.json от updater
-      - ./botdata:/app/botdata  # id отправленных сообщений для /delete
-    command: python bot.py
+    command: python -m bot
 
   updater:
     build: .
@@ -62,8 +61,8 @@ services:
     volumes:
       - ./.cache:/root/.cache
       - ./state:/app/state
-      - ./tainted_grail:/app/tainted_grail:ro  # PDF правил «Осквернённого Грааля»
-    command: python updater.py
+      - ./data/tainted_grail:/app/data/tainted_grail:ro  # PDF правил и база лора (grail/) «Осквернённого Грааля»
+    command: python -m updater.updater
 
 networks:
   default:

@@ -1,9 +1,9 @@
 """
-xml_parser.py — Парсинг XML дампа вики Genshin Impact и загрузка в ChromaDB
+parsers/wiki_xml.py — Парсинг XML дампа вики Genshin Impact и загрузка в ChromaDB
 
 Использование:
     pip install chromadb mwparserfromhell python-dotenv
-    python xml_parser.py --xml Genshin_Impact_Вики-20260512121848.xml
+    python -m parsers.wiki_xml --xml data/Genshin+Impact+Вики-20260512121848.xml
 
 Результат: локальная ChromaDB в папке ./chroma_db
 """
@@ -13,7 +13,7 @@ import re
 import argparse
 import xml.etree.ElementTree as ET
 
-from db import CHROMA_DIR, COLLECTION, get_client, get_collection
+from common.db import CHROMA_DIR, COLLECTION, get_client, get_collection
 
 # ─── Конфигурация ────────────────────────────────────────────────────────────
 BATCH_SIZE  = 100
@@ -190,7 +190,7 @@ def main():
 
     articles = parse_xml(args.xml)
     load_to_chroma(articles)
-    print("\n🎉 База знаний готова! Теперь запускай bot.py")
+    print("\n🎉 База знаний готова! Теперь запускай python -m bot")
 
 
 if __name__ == "__main__":
