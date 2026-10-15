@@ -1,27 +1,31 @@
-"""Доступ: Лиза отвечает в разрешённых чатах, а в личке — их участникам и пользователям из списка."""
+"""Доступ: Лиза отвечает в разрешённых чатах, а в личке — только пользователям из ALLOWED_USERS."""
 
 from __future__ import annotations
 
-import logging
-import time
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 
-from telegram import Bot
 
-from bot.config import MEMBER_CACHE_TTL
-
-log = logging.getLogger(__name__)
-
-MEMBER_STATUSES = ("creator", "administrator", "member")
+def parse_allowed_users(value: str) -> dict[int, str]:
+    """«id[:метка],...» → {id: метка}. id обязателен и проверяется, метка — любой текст для логов."""
+    users: dict[int, str] = {}
+    for entry in value.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        id_part, _, label = entry.partition(":")
+        try:
+            user_id = int(id_part.strip())
+        except ValueError:
+            raise SystemExit(f"ALLOWED_USERS: «{entry}» — ожидается id пользователя "
+                             "(число), метка через двоеточие необязательна: 123456789:@name") from None
+        users[user_id] = label.strip()
+    return users
 
 
 class Access:
-    def __init__(self, allowed_chats: Collection[int], allowed_users: Collection[int] = (),
-                 cache_ttl: float = MEMBER_CACHE_TTL):
+    def __init__(self, allowed_chats: Collection[int], allowed_users: Mapping[int, str] | None = None):
         self.allowed_chats = allowed_chats
-        self.allowed_users = allowed_users
-        self.cache_ttl = cache_ttl
-        self._members: dict[int, tuple[bool, float]] = {}
+        self.allowed_users = allowed_users or {}
 
     @property
     def unrestricted(self) -> bool:
@@ -30,25 +34,9 @@ class Access:
     def chat_allowed(self, chat_id: int) -> bool:
         return self.unrestricted or chat_id in self.allowed_chats
 
-    async def private_allowed(self, bot: Bot, user_id: int) -> bool:
-        """Можно ли отвечать в личке: пользователь из ALLOWED_USERS или участник разрешённого чата."""
-        return user_id in self.allowed_users or await self.is_member(bot, user_id)
+    def private_allowed(self, user_id: int) -> bool:
+        return user_id in self.allowed_users
 
-    async def is_member(self, bot: Bot, user_id: int) -> bool:
-        """Состоит ли пользователь хотя бы в одном разрешённом чате (кэш на cache_ttl)."""
-        cached = self._members.get(user_id)
-        if cached and time.monotonic() - cached[1] < self.cache_ttl:
-            return cached[0]
-        ok = False
-        for chat_id in self.allowed_chats:
-            try:
-                member = await bot.get_chat_member(chat_id, user_id)
-            except Exception as e:
-                log.warning("get_chat_member(%s, %s): %s", chat_id, user_id, e)
-                continue
-            if member.status in MEMBER_STATUSES or \
-               (member.status == "restricted" and getattr(member, "is_member", False)):
-                ok = True
-                break
-        self._members[user_id] = (ok, time.monotonic())
-        return ok
+    def label(self, user_id: int) -> str:
+        """Метка пользователя из ALLOWED_USERS (только для логов), «» — если нет."""
+        return self.allowed_users.get(user_id, "")

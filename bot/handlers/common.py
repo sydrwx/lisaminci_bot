@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 
 async def check_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Разрешённый чат или личка участника разрешённого чата. Иначе — отказ без Claude."""
+    """Разрешённый чат или личка пользователя из ALLOWED_USERS. Иначе — отказ без Claude."""
     svc = get_services(context)
     if svc.access.unrestricted:
         return True
@@ -24,7 +24,7 @@ async def check_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bo
     msg = update.message
 
     if chat.type == Chat.PRIVATE:
-        if await svc.access.private_allowed(context.bot, update.effective_user.id):
+        if svc.access.private_allowed(update.effective_user.id):
             return True
         log.info("Отказ в личке: %s", describe_user(update.effective_user))
         await svc.reply(msg, texts.PRIVATE_DENIED)

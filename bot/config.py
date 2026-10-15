@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
+from bot.access import parse_allowed_users
+
 BOT_NAME = "Лиза"
 CLAUDE_BASE_URL = "https://api.anthropic.com"  # ANTHROPIC_BASE_URL игнорируется
 
@@ -16,7 +18,6 @@ TITLE_K = 4              # чанков из каждой статьи, найд
 MAX_TITLE_MATCHES = 3    # сколько статей брать по совпадению названия
 TITLES_TTL = 3600        # как часто перечитывать список статей (updater меняет базу)
 MAX_HISTORY = 10         # пар вопрос-ответ в истории диалога
-MEMBER_CACHE_TTL = 3600  # кэш проверки членства в чате для лички
 MAX_TRACKED = 50         # сколько последних сообщений бота помнить в каждом чате для /delete
 MAX_TOKENS = 1000        # длина ответа Claude
 
@@ -40,8 +41,8 @@ class Settings:
     private_prompt_file: str           # кто есть кто в чате, вне git
     admin_prompt_file: str             # пометка «пишет администратор», вне git
 
-    allowed_chats: frozenset[int]      # где Лиза отвечает; в личке — участникам этих чатов
-    allowed_users: frozenset[int]      # кому ещё открыта личка (id пользователей)
+    allowed_chats: frozenset[int]      # где Лиза отвечает (группы)
+    allowed_users: dict[int, str]      # кому открыта личка: id → метка для логов
     tg_priority_chats: frozenset[int]  # где по умолчанию обсуждают «Осквернённый Грааль»
     admin_usernames: frozenset[str]    # кому разрешено /delete
     pray_chat_id: int                  # где работают /pray и /praystats (0 — нигде)
@@ -69,7 +70,7 @@ class Settings:
             private_prompt_file=env("PRIVATE_PROMPT_FILE", "./data/prompt_private.txt"),
             admin_prompt_file=env("ADMIN_PROMPT_FILE", "./data/prompt_admin.txt"),
             allowed_chats=_ids(env("ALLOWED_CHATS", env("TG_CHAT", ""))),
-            allowed_users=_ids(env("ALLOWED_USERS", "")),
+            allowed_users=parse_allowed_users(env("ALLOWED_USERS", "")),
             tg_priority_chats=_ids(env("TG_PRIORITY_CHATS", "")),
             admin_usernames=_usernames(env("ADMIN_USERNAMES", "")),
             pray_chat_id=int(env("PRAY_CHAT_ID", "0")),

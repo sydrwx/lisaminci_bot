@@ -1,28 +1,26 @@
-import asyncio
-from types import SimpleNamespace
+import pytest
 
-from bot.access import Access
-
-
-class FakeBot:
-    def __init__(self, members: dict[int, str]):
-        self.members = members
-        self.calls = 0
-
-    async def get_chat_member(self, chat_id, user_id):
-        self.calls += 1
-        return SimpleNamespace(status=self.members.get(user_id, "left"))
+from bot.access import Access, parse_allowed_users
 
 
-def test_allowed_user_without_membership():
-    bot = FakeBot({})
-    access = Access({-100}, allowed_users={42})
-    assert asyncio.run(access.private_allowed(bot, 42))
-    assert bot.calls == 0  # членство не проверяется
+def test_parse_ids_with_optional_labels():
+    assert parse_allowed_users(" 123 , 456:@name ,789: Мария (сестра) ,") == {
+        123: "", 456: "@name", 789: "Мария (сестра)"}
+    assert parse_allowed_users("") == {}
 
 
-def test_member_allowed_stranger_denied():
-    bot = FakeBot({7: "member"})
-    access = Access({-100}, allowed_users={42})
-    assert asyncio.run(access.private_allowed(bot, 7))
-    assert not asyncio.run(access.private_allowed(bot, 8))
+def test_parse_rejects_bad_id():
+    with pytest.raises(SystemExit, match="@name"):
+        parse_allowed_users("123,@name")
+
+
+def test_private_only_by_list():
+    access = Access({-100}, {42: "@friend"})
+    assert access.private_allowed(42)
+    assert not access.private_allowed(7)  # участник чата без записи в списке — нет
+    assert access.label(42) == "@friend" and access.label(7) == ""
+
+
+def test_chats():
+    assert Access({-100}).chat_allowed(-100) and not Access({-100}).chat_allowed(-200)
+    assert Access(set()).unrestricted and Access(set()).chat_allowed(-200)
