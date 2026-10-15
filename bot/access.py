@@ -1,4 +1,4 @@
-"""Доступ: Лиза отвечает в разрешённых чатах и в личке их участникам."""
+"""Доступ: Лиза отвечает в разрешённых чатах, а в личке — их участникам и пользователям из списка."""
 
 from __future__ import annotations
 
@@ -16,8 +16,10 @@ MEMBER_STATUSES = ("creator", "administrator", "member")
 
 
 class Access:
-    def __init__(self, allowed_chats: Collection[int], cache_ttl: float = MEMBER_CACHE_TTL):
+    def __init__(self, allowed_chats: Collection[int], allowed_users: Collection[int] = (),
+                 cache_ttl: float = MEMBER_CACHE_TTL):
         self.allowed_chats = allowed_chats
+        self.allowed_users = allowed_users
         self.cache_ttl = cache_ttl
         self._members: dict[int, tuple[bool, float]] = {}
 
@@ -27,6 +29,10 @@ class Access:
 
     def chat_allowed(self, chat_id: int) -> bool:
         return self.unrestricted or chat_id in self.allowed_chats
+
+    async def private_allowed(self, bot: Bot, user_id: int) -> bool:
+        """Можно ли отвечать в личке: пользователь из ALLOWED_USERS или участник разрешённого чата."""
+        return user_id in self.allowed_users or await self.is_member(bot, user_id)
 
     async def is_member(self, bot: Bot, user_id: int) -> bool:
         """Состоит ли пользователь хотя бы в одном разрешённом чате (кэш на cache_ttl)."""

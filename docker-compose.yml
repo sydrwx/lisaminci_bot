@@ -45,7 +45,6 @@ services:
       IP_CHECK_INTERVAL: ${IP_CHECK_INTERVAL:-300}
     volumes:
       - ./.cache:/root/.cache
-      - ./state:/app/state:ro  # banners.json от updater
     command: python -m bot
 
   updater:
@@ -60,7 +59,6 @@ services:
       UPDATE_TIME: ${UPDATE_TIME:-01:00}  # UTC, 04:00 МСК
     volumes:
       - ./.cache:/root/.cache
-      - ./state:/app/state
       - ./data/tainted_grail:/app/data/tainted_grail:ro  # PDF правил и база лора (grail/) «Осквернённого Грааля»
     command: python -m updater.updater
 

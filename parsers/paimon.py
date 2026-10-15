@@ -7,12 +7,12 @@ parsers/paimon.py — молитвы (баннеры) и события из pai
     timeline.js  — текущие и ближайшие события;
     characters.js / weaponList.js + locales/items/ru.json — русские названия.
 
-Результат:
-    - state/banners.json — актуальные молитвы/события; бот читает его на каждый запрос;
+Результат collect():
+    - снимок актуальных молитв/событий — updater сохраняет его в базу (banners:current),
+      бот прикладывает его к каждому вопросу о Genshin;
     - документы для ChromaDB: история молитв по персонажам/оружию и по версиям.
 """
 
-import os
 import re
 import json
 import logging
@@ -28,7 +28,7 @@ USER_AGENT = "LisaGenshinBot-updater/1.0 (Telegram bot knowledge base sync)"
 SERVER_TZ = timezone(timedelta(hours=8))
 BANNER_TYPES = {"characters": "Молитва события персонажа", "weapons": "Молитва события оружия",
                 "chronicled": "Молитва хроник"}
-KEEP_DAYS = 45  # в banners.json — молитвы/события, закончившиеся не раньше чем столько дней назад
+KEEP_DAYS = 45  # в снимке для бота — молитвы/события, закончившиеся не раньше чем столько дней назад
 
 log = logging.getLogger("updater.paimon")
 
@@ -61,7 +61,8 @@ def parse_time(s: str) -> datetime:
     return datetime.strptime(s, "%Y-%m-%d %H:%M:%S").replace(tzinfo=SERVER_TZ)
 
 
-def collect(state_path: str) -> list[dict]:
+def collect() -> tuple[dict, list[dict]]:
+    """(снимок актуальных молитв и событий, документы для базы)."""
     names = load_names()
     banners = parse_js_literal(fetch("data/banners.js"))
     timeline = parse_js_literal(fetch("data/timeline.js"))
@@ -96,7 +97,7 @@ def collect(state_path: str) -> list[dict]:
                 "url": e.get("url"),
             })
 
-    # ── state/banners.json для бота ─────────────────────────────────────────
+    # ── снимок для бота ─────────────────────────────────────────────────────
     cutoff = now - timedelta(days=KEEP_DAYS)
     state = {
         "source": "paimon.moe",
@@ -105,9 +106,6 @@ def collect(state_path: str) -> list[dict]:
         "banners": [b for b in all_banners if parse_time(b["end"]) >= cutoff],
         "events": [e for e in events if parse_time(e["end"]) >= cutoff],
     }
-    with open(state_path + ".tmp", "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-    os.replace(state_path + ".tmp", state_path)
     log.info(f"paimon.moe: молитв {len(all_banners)}, актуальных {len(state['banners'])}, событий {len(events)}")
 
     # ── документы для базы ──────────────────────────────────────────────────
@@ -155,4 +153,4 @@ def collect(state_path: str) -> list[dict]:
             "text": f"# Событие: {e['name']} (paimon.moe)\n"
                     f"Даты: {e['start'][:16]} – {e['end'][:16]}\n{e['description']}".strip(),
         })
-    return docs
+    return state, docs

@@ -30,3 +30,14 @@ def test_dialogs_keep_last_pairs_and_topic():
     assert d.last_topic((1, 1)) is Topic.TG
     d.reset((1, 1))
     assert d.history((1, 1)) == [] and d.last_topic((1, 1)) is None
+
+
+def test_confidentiality_in_prompt_and_admin_note_only_for_admin():
+    from bot.prompt import ADMIN_NOTE, CONFIDENTIALITY, system_blocks
+
+    prompt = build_system_prompt([])
+    assert CONFIDENTIALITY[0] in prompt
+    assert [b["text"] for b in system_blocks(prompt)] == [prompt]
+    admin = system_blocks(prompt, admin=True)
+    assert admin[0] == system_blocks(prompt)[0]  # кэш основного промпта общий
+    assert admin[1]["text"] == ADMIN_NOTE and "cache_control" not in admin[1]

@@ -22,6 +22,7 @@ CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
 CHROMA_DIR  = "./chroma_db"
 COLLECTION    = os.getenv("CHROMA_COLLECTION", "genshin_ml")
 TG_COLLECTION = os.getenv("TG_COLLECTION", "tainted_grail")  # настольная игра «Осквернённый Грааль»
+STATE_COLLECTION = os.getenv("STATE_COLLECTION", "bot_state")  # служебное состояние, см. common/state.py
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 EMBED_CACHE = os.path.expanduser(os.getenv("EMBED_CACHE", "~/.cache/fastembed"))
 

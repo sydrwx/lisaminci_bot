@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Collection
 
 from telegram import Message, User
 from telegram.error import BadRequest, NetworkError
 
 from bot.config import MAX_TRACKED
-from bot.storage import StateStore
+from common.state import StateStore
 
 log = logging.getLogger(__name__)
 
@@ -70,13 +71,27 @@ async def send_reply(msg: Message, text: str, sent: SentMessages | None = None,
 
 
 def describe_user(user: User | None) -> str:
-    """«@username (Имя Фамилия)» — по username промпт узнаёт конкретных пользователей."""
+    """Для логов: «@username (Имя Фамилия)», без username — с id."""
     if user is None:
         return "неизвестный"
     name = user.full_name or ""
     if user.username:
         return f"@{user.username} ({name})" if name else f"@{user.username}"
     return f"{name} (id {user.id}, без username)"
+
+
+def prompt_user(user: User | None) -> str:
+    """Для Claude: «@username (Имя)» — по username промпт узнаёт знакомых; id в промпт не попадает."""
+    if user is None:
+        return "неизвестный"
+    name = user.full_name or ""
+    if user.username:
+        return f"@{user.username} ({name})" if name else f"@{user.username}"
+    return f"{name or 'без имени'} (без username)"
+
+
+def is_admin(user: User | None, admin_usernames: Collection[str]) -> bool:
+    return bool(user and user.username and user.username.lower() in admin_usernames)
 
 
 def mention(user: User) -> str:

@@ -24,7 +24,7 @@ async def check_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bo
     msg = update.message
 
     if chat.type == Chat.PRIVATE:
-        if await svc.access.is_member(context.bot, update.effective_user.id):
+        if await svc.access.private_allowed(context.bot, update.effective_user.id):
             return True
         log.info("Отказ в личке: %s", describe_user(update.effective_user))
         await svc.reply(msg, texts.PRIVATE_DENIED)

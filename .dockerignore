@@ -3,7 +3,6 @@
 cache
 chroma_db
 chroma_db.bak-*
-state
 data/tainted_grail
 .env
 .env.bak-*

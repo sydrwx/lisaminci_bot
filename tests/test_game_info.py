@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from bot.game_info import SERVER_TZ, current_game_info
+from bot.game_info import SERVER_TZ, BannerStore, current_game_info
+from common.state import StateStore
+from tests.fakes import FakeCollection
 
 DATA = {
     "generated": "2026-10-15T00:00:00",
@@ -24,3 +26,26 @@ def test_current_and_upcoming():
 
 def test_no_data_only_date():
     assert current_game_info({}, NOW) == "## Сейчас в игре\nСегодня: 2026-10-15 12:00 (UTC+8, сервер Азия)"
+
+
+def test_banner_store_reads_db_and_caches():
+    db = StateStore(FakeCollection())
+    banners = BannerStore(db, ttl=60)
+    assert banners.load() == {}
+    db.put("banners", "current", DATA)
+    assert banners.load() == {}  # кэш ещё действует
+    banners.ttl = -1
+    assert banners.current_character_banner(NOW)["name"] == "Сейчас"
+
+
+def test_banner_store_keeps_last_snapshot_when_db_down():
+    class Down(FakeCollection):
+        def get(self, *a, **kw):
+            raise ConnectionError("chroma down")
+
+    db = StateStore(FakeCollection())
+    db.put("banners", "current", DATA)
+    banners = BannerStore(db, ttl=-1)
+    banners.load()
+    banners.store = StateStore(Down())
+    assert banners.load() == DATA

@@ -1,16 +1,18 @@
-"""Блок «Сейчас в игре»: дата, молитвы и события из state/banners.json (paimon.moe)."""
+"""Блок «Сейчас в игре»: дата, молитвы и события paimon.moe (пишет updater, запись banners:current)."""
 
 from __future__ import annotations
 
-import json
 import logging
-import os
+import time
 from datetime import UTC, datetime, timedelta, timezone
+
+from common.state import StateStore
 
 log = logging.getLogger(__name__)
 
 SERVER_TZ = timezone(timedelta(hours=8))  # время в paimon.moe — сервер Азия
 CHARACTER_BANNER = "Молитва события персонажа"
+BANNERS_TTL = 300  # сек: updater обновляет данные раз в сутки, чаще ходить в базу незачем
 
 
 def parse_time(s: str) -> datetime:
@@ -22,25 +24,27 @@ def is_active(item: dict, now: datetime) -> bool:
 
 
 class BannerStore:
-    """state/banners.json (пишет updater); перечитывается при изменении файла."""
+    """Снимок молитв и событий из базы с кэшем на ttl секунд.
 
-    def __init__(self, path: str):
-        self.path = path
-        self._mtime = 0.0
+    Синхронный (HTTP к Chroma) — из обработчиков вызывать через asyncio.to_thread.
+    """
+
+    KIND, KEY = "banners", "current"
+
+    def __init__(self, store: StateStore, ttl: float = BANNERS_TTL):
+        self.store = store
+        self.ttl = ttl
+        self._loaded_at: float | None = None
         self._data: dict = {}
 
     def load(self) -> dict:
+        if self._loaded_at is not None and time.monotonic() - self._loaded_at < self.ttl:
+            return self._data
         try:
-            mtime = os.path.getmtime(self.path)
-        except OSError:
-            return {}
-        if mtime != self._mtime:
-            try:
-                with open(self.path, encoding="utf-8") as f:
-                    self._data = json.load(f)
-                self._mtime = mtime
-            except (OSError, ValueError) as e:
-                log.warning("Не удалось прочитать %s: %s", self.path, e)
+            self._data = self.store.get(self.KIND, self.KEY, {})
+        except Exception as e:  # база недоступна — отдаём последний снимок
+            log.warning("Не удалось прочитать молитвы и события из базы: %r", e)
+        self._loaded_at = time.monotonic()
         return self._data
 
     def current_character_banner(self, now: datetime | None = None) -> dict | None:

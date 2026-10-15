@@ -18,9 +18,9 @@ from bot.game_info import BannerStore
 from bot.messaging import SentMessages, send_reply
 from bot.pray import PrayStore
 from bot.retrieval import Retriever, load_chat_topics
-from bot.storage import StateStore
 from bot.titles import TitleIndex, collection_titles
 from common.db import TG_COLLECTION, get_collection, get_embedding_function
+from common.state import StateStore
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ class Services:
     settings: Settings
     claude: anthropic.AsyncAnthropic
     system: list[dict]          # системный промпт (блоки с cache_control)
+    system_admin: list[dict]    # то же с пометкой «пишет администратор»
     collection: object          # коллекция Genshin в Chroma
     title_index: TitleIndex
     retriever: Retriever
@@ -91,20 +92,21 @@ def build_services(settings: Settings) -> Services:
                     settings.ip_check_interval, settings.ip_recheck_interval)
     akasha.refresh_ip()
 
-    state = StateStore.connect(settings.state_collection)
+    state = StateStore.connect()
 
     system_prompt = prompt.build_system_prompt(prompt.load_private_lines(settings.private_prompt_file))
     return Services(
         settings=settings,
         claude=claude,
         system=prompt.system_blocks(system_prompt),
+        system_admin=prompt.system_blocks(system_prompt, admin=True),
         collection=collection,
         title_index=title_index,
         retriever=retriever,
-        banners=BannerStore(settings.banners_file),
+        banners=BannerStore(state),
         dialogs=Dialogs(),
         sent=SentMessages(state),
         pray=PrayStore(state, settings.pray_bonus_users),
-        access=Access(settings.allowed_chats),
+        access=Access(settings.allowed_chats, settings.allowed_users),
         akasha=akasha,
     )

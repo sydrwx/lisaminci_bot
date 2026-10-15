@@ -1,4 +1,8 @@
-"""Состояние бота (молитвы, id сообщений для /delete) в отдельной коллекции ChromaDB.
+"""Служебное состояние в отдельной коллекции ChromaDB (STATE_COLLECTION).
+
+Бот: молитвы (pray:<user_id>), id сообщений для /delete (sent:<chat_id>).
+Updater: состояние синхронизации (updater:<коллекция>), молитвы и события «сейчас»
+для бота (banners:current).
 
 Chroma — векторная база, поэтому у записей фиктивный эмбеддинг; значение хранится
 JSON-строкой в документе, вид записи — в метаданных. Id записи — «вид:ключ».
@@ -11,7 +15,7 @@ import json
 import logging
 from typing import Any
 
-from common.db import get_client
+from common.db import STATE_COLLECTION, get_client
 
 log = logging.getLogger(__name__)
 
@@ -23,8 +27,12 @@ class StateStore:
         self._col = collection
 
     @classmethod
-    def connect(cls, name: str) -> StateStore:
+    def connect(cls, name: str = STATE_COLLECTION) -> StateStore:
         return cls(get_client().get_or_create_collection(name, embedding_function=None))
+
+    def get(self, kind: str, key: str, default: Any = None) -> Any:
+        got = self._col.get(ids=[f"{kind}:{key}"], include=["documents"])
+        return json.loads(got["documents"][0]) if got["ids"] else default
 
     def load_all(self, kind: str) -> dict[str, Any]:
         """Все записи вида kind: ключ → значение."""

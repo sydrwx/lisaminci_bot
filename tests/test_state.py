@@ -2,7 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from bot.messaging import SentMessages
-from bot.storage import StateStore
+from common.state import StateStore
 from tests.fakes import FakeCollection
 
 
@@ -12,6 +12,8 @@ def test_put_and_load_by_kind():
     store.put("sent", "1", [10])
     assert store.load_all("pray") == {"1": {"total": 3, "username": "Лиза"}}
     assert store.load_all("sent") == {"1": [10]}
+    assert store.get("pray", "1") == {"total": 3, "username": "Лиза"}
+    assert store.get("pray", "нет", {}) == {}
 
 
 def test_save_swallows_errors():
