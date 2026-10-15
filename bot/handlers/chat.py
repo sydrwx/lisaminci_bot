@@ -87,7 +87,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     svc = get_services(context)
     chat_id = update.effective_chat.id
     key = (chat_id, update.effective_user.id)
-    log.info("[%s] thread=%s: %s", describe_user(update.effective_user), msg.message_thread_id, query[:60])
+    admin = is_admin(update.effective_user, svc.settings.admin_usernames)
+    log.info("[%s%s] thread=%s: %s", describe_user(update.effective_user), " (админ)" if admin else "",
+             msg.message_thread_id, query[:60])
 
     # IP прокси вне подсети (периодическая проверка) или прокси не отвечает прямо сейчас
     if not await svc.akasha.available():
@@ -106,7 +108,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                              svc.settings.tg_priority_chats,
                              lambda q: bool(svc.title_index.find(q)))
         context_text, info = await gather_context(svc, topic, query, chat_id)
-        admin = is_admin(update.effective_user, svc.settings.admin_usernames)
         answer = await ask_claude(svc, svc.dialogs.history(key), question, context_text, info, admin)
         svc.dialogs.remember(key, question, answer, topic)
         await svc.reply(msg, answer)
