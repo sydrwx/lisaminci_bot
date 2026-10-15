@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from telegram import Chat, Update
-from telegram.error import NetworkError
+from telegram.error import Conflict, NetworkError
 from telegram.ext import ContextTypes
 
 from bot import texts
@@ -52,5 +52,9 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Общий обработчик: сетевые сбои — коротко, остальное — с трейсбеком."""
     if isinstance(context.error, NetworkError):
         log.warning("Сетевая ошибка Telegram: %r", context.error)
+    elif isinstance(context.error, Conflict):
+        # После обрыва связи прежний getUpdates ещё «висит» у Telegram — PTB повторит запрос сам.
+        # Если повторяется постоянно, с тем же токеном запущен второй экземпляр бота.
+        log.warning("Конфликт getUpdates (после обрыва связи или второй экземпляр бота): %s", context.error)
     else:
         log.error("Необработанная ошибка", exc_info=context.error)
