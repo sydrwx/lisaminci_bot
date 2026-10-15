@@ -38,7 +38,7 @@ paimon.moe                    молитвы и события «сейчас» 
 | `parsers/chat.py` | Парсинг истории Telegram-чата в `data/knowledge_base.json` |
 | `common/db.py` | Общее подключение к ChromaDB и многоязычные эмбеддинги |
 | `common/ipcheck.py` | Проверка внешнего IP (сервис `ipcheck` и проверка внутри бота) |
-| `data/` | Файлы данных: `prompt_private.txt`, `knowledge_base.json`, сессия Telethon, XML-дамп вики, `tainted_grail/` |
+| `data/` | Файлы данных: `prompt_private.txt`, `prompt_admin.txt`, `knowledge_base.json`, сессия Telethon, XML-дамп вики, `tainted_grail/` |
 | `data/tainted_grail/` | PDF правил «Падение Авалона» и «Короли краха» (новые PDF кладите сюда); `grail/` — база лора на русском (`*.md`, кроме `источники.md`) |
 
 Модули запускаются из корня проекта как пакеты: `python -m bot`, `python -m updater.updater`,
@@ -67,7 +67,9 @@ paimon.moe                    молитвы и события «сейчас» 
 ## 🔑 Ключи и настройки
 
 Настройки — в `.env` (шаблон: `.env.example`), персональная часть промпта (кто есть кто
-в чате) — в `data/prompt_private.txt` (шаблон: `data/prompt_private.example.txt`). `.env` и `prompt_private.txt` в git не попадают.
+в чате) — в `data/prompt_private.txt` (шаблон: `data/prompt_private.example.txt`), пометка для администратора
+(снимает с Лизы правило конфиденциальности для `ADMIN_USERNAMES`) — в `data/prompt_admin.txt`
+(шаблон: `data/prompt_admin.example.txt`). `.env`, `prompt_private.txt` и `prompt_admin.txt` в git не попадают.
 
 - `TG_BOT_TOKEN` и данные Telethon — в `.env`.
 - `ANTHROPIC_API_KEY` — **из `~/.bashrc`** (переменная окружения хоста), запросы идут
@@ -104,7 +106,9 @@ TCP-соединение с прокси `ANTHROPIC_PROXY` (таймаут `PROX
 `sudo iptables -I DOCKER-USER -d 10.10.10.102 -j DROP` (вернуть — то же с `-D`).
 
 **Чаты.** Лиза отвечает только в чатах из `ALLOWED_CHATS` (через запятую, по умолчанию `TG_CHAT`),
-а в личке — только участникам этих чатов и пользователям из `ALLOWED_USERS` (id через запятую).
+а в личке — только пользователям из `ALLOWED_USERS` (участники чатов сами по себе не проходят).
+Формат: через запятую `id` или `id:метка`, например `123456789,987654321:@name`; id проверяется
+строго, метка — любой текст, только для логов.
 Из чужих групп бот сразу выходит.
 
 ---

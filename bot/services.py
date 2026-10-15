@@ -85,6 +85,8 @@ def build_services(settings: Settings) -> Services:
 
     if settings.allowed_chats:
         log.info("Разрешённые чаты: %s", sorted(settings.allowed_chats))
+        log.info("Личка: %s", ", ".join(f"{uid} ({label})" if label else str(uid)
+                                        for uid, label in settings.allowed_users.items()) or "никому")
     else:
         log.warning("ALLOWED_CHATS и TG_CHAT не заданы — бот отвечает в любых чатах!")
 
@@ -99,7 +101,7 @@ def build_services(settings: Settings) -> Services:
         settings=settings,
         claude=claude,
         system=prompt.system_blocks(system_prompt),
-        system_admin=prompt.system_blocks(system_prompt, admin=True),
+        system_admin=prompt.system_blocks(system_prompt, prompt.load_admin_note(settings.admin_prompt_file)),
         collection=collection,
         title_index=title_index,
         retriever=retriever,

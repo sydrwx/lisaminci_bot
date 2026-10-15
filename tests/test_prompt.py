@@ -33,11 +33,20 @@ def test_dialogs_keep_last_pairs_and_topic():
 
 
 def test_confidentiality_in_prompt_and_admin_note_only_for_admin():
-    from bot.prompt import ADMIN_NOTE, CONFIDENTIALITY, system_blocks
+    from bot.prompt import CONFIDENTIALITY, system_blocks
 
     prompt = build_system_prompt([])
     assert CONFIDENTIALITY[0] in prompt
     assert [b["text"] for b in system_blocks(prompt)] == [prompt]
-    admin = system_blocks(prompt, admin=True)
+    admin = system_blocks(prompt, "ПОМЕТКА")
     assert admin[0] == system_blocks(prompt)[0]  # кэш основного промпта общий
-    assert admin[1]["text"] == ADMIN_NOTE and "cache_control" not in admin[1]
+    assert admin[1] == {"type": "text", "text": "ПОМЕТКА"}
+
+
+def test_admin_note_from_file(tmp_path):
+    from bot.prompt import load_admin_note
+
+    f = tmp_path / "admin.txt"
+    f.write_text("# комментарий\nПервая строка.\n\nВторая.\n", encoding="utf-8")
+    assert load_admin_note(str(f)) == "Первая строка. Вторая."
+    assert load_admin_note(str(tmp_path / "нет.txt")) is None
