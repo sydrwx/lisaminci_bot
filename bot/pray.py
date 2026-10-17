@@ -159,8 +159,12 @@ class PrayStore:
         await self.store.save(self.KIND, str(user_id), self.state[str(user_id)])
 
 
+def has_prayers(state: dict[str, dict]) -> bool:
+    return any(st.get("total", 0) > 0 for st in state.values())
+
+
 def format_rating(state: dict[str, dict], user_id: int, limit: int = 15) -> str:
-    """Рейтинг чата: больше 5★ — выше; при равенстве — кому они дешевле дались."""
+    """Рейтинг чата: больше 5★ — выше; при равенстве — кому они дешевле дались. Только молившиеся."""
 
     def row(uid: str, st: dict) -> dict:
         stats = st.get("stats", {})
@@ -170,7 +174,8 @@ def format_rating(state: dict[str, dict], user_id: int, limit: int = 15) -> str:
                 "won": stats.get("5", 0), "jean": stats.get("jean", 0), "four": stats.get("4", 0),
                 "per5": total / five if five else None}
 
-    rows = sorted((row(u, st) for u, st in state.items()),
+    # Кто ни разу не молился (например, только получил бонусную молитву за задание) — не в рейтинге
+    rows = sorted((row(u, st) for u, st in state.items() if st.get("total", 0) > 0),
                   key=lambda r: (-r["five"], r["per5"] or 10**9, -r["jean"], -r["total"]))
     medals = ["🥇", "🥈", "🥉"]
     lines = ["📜 Рейтинг молитв библиотеки"]

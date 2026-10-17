@@ -88,9 +88,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     chat_id = update.effective_chat.id
     key = (chat_id, update.effective_user.id)
     admin = is_admin(update.effective_user, svc.settings.admin_usernames)
-    label = svc.access.label(update.effective_user.id)
-    log.info("[%s%s%s] thread=%s: %s", describe_user(update.effective_user),
-             f" «{label}»" if label else "", " (админ)" if admin else "", msg.message_thread_id, query[:60])
+    log.info("[%s%s] thread=%s: %s", describe_user(update.effective_user),
+             " (админ)" if admin else "", msg.message_thread_id, query[:60])
 
     # IP прокси вне подсети (периодическая проверка) или прокси не отвечает прямо сейчас
     if not await svc.akasha.available():
@@ -110,7 +109,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                              lambda q: bool(svc.title_index.find(q)))
         context_text, info = await gather_context(svc, topic, query, chat_id)
         answer = await ask_claude(svc, svc.dialogs.history(key), question, context_text, info, admin)
-        svc.dialogs.remember(key, question, answer, topic)
+        await svc.dialogs.remember(key, question, answer, topic)
         await svc.reply(msg, answer)
     except anthropic.APIConnectionError as e:
         # Claude недоступен по сети (в т.ч. прокси упал между проверкой и запросом)
