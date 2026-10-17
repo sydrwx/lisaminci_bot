@@ -1,20 +1,23 @@
 """Молитвы и рейтинг: кнопки меню (см. handlers/menu.py) и старые /pray, /praystats.
 
-Молитва — только в PRAY_CHAT_ID, рейтинг — только в личке; без Claude.
+Молитва — только в PRAY_CHAT_ID, рейтинг — в личке (а /praystats от администратора — для всего
+чата молитв); без Claude.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import random
 from datetime import UTC, datetime
 
 from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, Update, User
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from bot import texts
-from bot.messaging import describe_user, mention
+from bot.messaging import describe_user, is_admin, mention
 from bot.pray import format_rating, format_wait, until_reset
 from bot.services import Services, get_services
 
@@ -59,6 +62,9 @@ async def pray_for(svc: Services, user: User) -> tuple[bool, str]:
     return True, text
 
 
+PUBLIC = 0  # user_id для рейтинга без личной строки
+
+
 def rating_text(svc: Services, user_id: int) -> str | None:
     return format_rating(svc.pray.state, user_id) if svc.pray.state else None
 
@@ -76,11 +82,23 @@ async def cmd_pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_praystats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     svc = get_services(context)
     msg = update.message
-    if update.effective_chat.type != Chat.PRIVATE:  # рейтинг — только в личке
+    chat = update.effective_chat
+    user = update.effective_user
+    if chat.type != Chat.PRIVATE and is_admin(user, svc.settings.admin_usernames):
+        # Админ публикует рейтинг для всего чата — без строки «ты на N-м месте»
+        if chat.id != svc.settings.pray_chat_id:
+            await svc.reply(msg, texts.PRAYSTATS_WRONG_CHAT)
+            return
+        log.info("/praystats в чате от %s", describe_user(user))
+        await svc.reply(msg, rating_text(svc, PUBLIC) or texts.PRAYSTATS_EMPTY, do_quote=False)
+        with contextlib.suppress(TelegramError):
+            await msg.delete()  # саму команду убираем
+        return
+    if chat.type != Chat.PRIVATE:  # остальным рейтинг — только в личке
         await svc.reply(msg, texts.PRAYSTATS_PRIVATE_ONLY, reply_markup=InlineKeyboardMarkup([[
             InlineKeyboardButton("📜 Рейтинг — у Лизы в личке", url=f"https://t.me/{context.bot.username}?start=stats")]]))
         return
-    if not await svc.access.private_allowed(context.bot, update.effective_user.id):
+    if not await svc.access.private_allowed(context.bot, user.id):
         await svc.reply(msg, texts.PRIVATE_DENIED)
         return
-    await svc.reply(msg, rating_text(svc, update.effective_user.id) or texts.PRAYSTATS_EMPTY)
+    await svc.reply(msg, rating_text(svc, user.id) or texts.PRAYSTATS_EMPTY)
