@@ -1,24 +1,39 @@
-import pytest
+import asyncio
+from types import SimpleNamespace
 
-from bot.access import Access, parse_allowed_users
-
-
-def test_parse_ids_with_optional_labels():
-    assert parse_allowed_users(" 123 , 456:@name ,789: Мария (сестра) ,") == {
-        123: "", 456: "@name", 789: "Мария (сестра)"}
-    assert parse_allowed_users("") == {}
+from bot.access import Access
 
 
-def test_parse_rejects_bad_id():
-    with pytest.raises(SystemExit, match="@name"):
-        parse_allowed_users("123,@name")
+class FakeBot:
+    def __init__(self, members):
+        self.members = members  # {(chat_id, user_id): status}
+        self.calls = 0
+
+    async def get_chat_member(self, chat_id, user_id):
+        self.calls += 1
+        if (chat_id, user_id) not in self.members:
+            raise RuntimeError("user not found")
+        return SimpleNamespace(status=self.members[(chat_id, user_id)], is_member=True)
 
 
-def test_private_only_by_list():
-    access = Access({-100}, {42: "@friend"})
-    assert access.private_allowed(42)
-    assert not access.private_allowed(7)  # участник чата без записи в списке — нет
-    assert access.label(42) == "@friend" and access.label(7) == ""
+def test_private_only_for_members_of_allowed_chats():
+    bot = FakeBot({(-200, 1): "member", (-100, 2): "left", (-100, 3): "restricted"})
+    access = Access([-100, -200])
+    assert asyncio.run(access.private_allowed(bot, 1))   # состоит во втором чате
+    assert not asyncio.run(access.private_allowed(bot, 2))  # вышел
+    assert asyncio.run(access.private_allowed(bot, 3))   # ограничен, но в чате
+    assert not asyncio.run(access.private_allowed(bot, 4))  # чужой
+
+
+def test_membership_cached():
+    bot = FakeBot({(-100, 1): "member"})
+    access = Access([-100], cache_ttl=100, negative_ttl=0)
+    asyncio.run(access.private_allowed(bot, 1))
+    asyncio.run(access.private_allowed(bot, 1))
+    assert bot.calls == 1
+    asyncio.run(access.private_allowed(bot, 2))
+    asyncio.run(access.private_allowed(bot, 2))  # «нет» с negative_ttl=0 — перепроверяется
+    assert bot.calls == 3
 
 
 def test_chats():

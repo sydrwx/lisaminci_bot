@@ -1,12 +1,11 @@
 """Задания Лизы: запись на задания, ежедневное напоминание и награда молитвами.
 
-Подтверждение — кнопкой под напоминанием: кто нажал, тот и получает награду (по Telegram id),
-за каждые сутки (UTC+3) — один раз. Кнопки вчерашних напоминаний не работают.
+Всё — в личке с Лизой. Подтверждение — кнопкой под личным напоминанием: кто нажал, тот и получает
+награду (по Telegram id), за каждые сутки (UTC+3) — один раз. Кнопки вчерашних напоминаний не работают.
 """
 
 from __future__ import annotations
 
-import html
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from enum import Enum
@@ -43,12 +42,6 @@ def next_reminder(now: datetime) -> datetime:
     """Ближайшее напоминание не раньше now."""
     today = reminder_at(now.astimezone(RESET_TZ).date())
     return today if now <= today else today + timedelta(days=1)
-
-
-def user_link(uid: str, st: dict) -> str:
-    """HTML-упоминание по id: тегает и пользователей без username."""
-    name = st.get("name") or (f"@{st['username']}" if st.get("username") else uid)
-    return f'<a href="tg://user?id={uid}">{html.escape(name)}</a>'
 
 
 class TaskStore:

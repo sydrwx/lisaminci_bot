@@ -7,8 +7,6 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-from bot.access import parse_allowed_users
-
 BOT_NAME = "Лиза"
 CLAUDE_BASE_URL = "https://api.anthropic.com"  # ANTHROPIC_BASE_URL игнорируется
 
@@ -20,6 +18,8 @@ TITLES_TTL = 3600        # как часто перечитывать списо
 MAX_HISTORY = 10         # пар вопрос-ответ в истории диалога
 MAX_TRACKED = 50         # сколько последних сообщений бота помнить в каждом чате для /delete
 MAX_TOKENS = 1000        # длина ответа Claude
+MEMBER_CACHE_TTL = 600   # сек, кэш «состоит в разрешённом чате» для лички
+NOT_MEMBER_CACHE_TTL = 60  # сек, кэш «не состоит»
 
 
 def _ids(value: str) -> frozenset[int]:
@@ -41,8 +41,7 @@ class Settings:
     private_prompt_file: str           # кто есть кто в чате, вне git
     admin_prompt_file: str             # пометка «пишет администратор», вне git
 
-    allowed_chats: frozenset[int]      # где Лиза отвечает (группы)
-    allowed_users: dict[int, str]      # кому открыта личка: id → метка для логов
+    allowed_chats: frozenset[int]      # где Лиза отвечает (группы); в личке — их участникам
     tg_priority_chats: frozenset[int]  # где по умолчанию обсуждают «Осквернённый Грааль»
     admin_usernames: frozenset[str]    # кому разрешено /delete
     pray_chat_id: int                  # где работают /pray и /praystats (0 — нигде)
@@ -71,7 +70,6 @@ class Settings:
             private_prompt_file=env("PRIVATE_PROMPT_FILE", "./data/prompt_private.txt"),
             admin_prompt_file=env("ADMIN_PROMPT_FILE", "./data/prompt_admin.txt"),
             allowed_chats=_ids(env("ALLOWED_CHATS", env("TG_CHAT", ""))),
-            allowed_users=parse_allowed_users(env("ALLOWED_USERS", "")),
             tg_priority_chats=_ids(env("TG_PRIORITY_CHATS", "")),
             admin_usernames=_usernames(env("ADMIN_USERNAMES", "")),
             pray_chat_id=int(env("PRAY_CHAT_ID", "0")),

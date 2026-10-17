@@ -1,7 +1,7 @@
-"""Задания Лизы: кнопка «Задания Лизы» (и старая /tasks), кнопки записи и подтверждения, напоминание в 19:00 (UTC+3).
+"""Задания Лизы — только в личке: список с записью/отпиской, напоминание в 19:00 (UTC+3) и подтверждение.
 
-Работают только в PRAY_CHAT_ID и без Claude. Данные кнопок:
-  tasks:menu               — открыть свой список заданий
+Работают без Claude, для участников разрешённых чатов (как и вся личка). Данные кнопок:
+  tasks:menu               — открыть свой список заданий (в группе — открывает личку с Лизой)
   tasks:sub:<task>:<uid>   — записаться/отписаться (только владелец списка uid)
   tasks:close:<uid>        — убрать свой список
   tasks:done:<task>:<day>  — подтвердить задание за сутки day (награда — нажавшему)
@@ -15,29 +15,29 @@ import logging
 import random
 from datetime import UTC, datetime
 
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update, User
-from telegram.constants import ParseMode
-from telegram.error import BadRequest, TelegramError
+from telegram import Bot, Chat, InlineKeyboardButton, InlineKeyboardMarkup, Message, Update, User
+from telegram.error import BadRequest, Forbidden, TelegramError
 from telegram.ext import ContextTypes
 
 from bot import texts
 from bot.messaging import describe_user, mention
 from bot.pray import RESET_TZ, pray_day
 from bot.services import Services, get_services
-from bot.tasks import CHECKIN, TASKS, Done, Task, next_reminder, reminder_at, user_link
+from bot.tasks import CHECKIN, TASKS, Done, Task, next_reminder, reminder_at
 
 log = logging.getLogger(__name__)
 
 MENU_BUTTON = InlineKeyboardButton("📋 Задания Лизы", callback_data="tasks:menu")
+SEND_PAUSE = 0.05  # сек между личными напоминаниями (лимиты Telegram на рассылку)
 
 
-async def cmd_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    svc = get_services(context)
-    msg = update.message
-    if update.effective_chat.id != svc.settings.pray_chat_id:
-        await svc.reply(msg, texts.TASKS_WRONG_CHAT)
-        return
-    await svc.reply(msg, texts.TASKS_INTRO, reply_markup=InlineKeyboardMarkup([[MENU_BUTTON]]))
+def private_link(bot: Bot, start: str = "tasks") -> str:
+    """Ссылка, открывающая личку с Лизой (с параметром для /start)."""
+    return f"https://t.me/{bot.username}?start={start}"
+
+
+def private_button(bot: Bot, text: str = "💌 Задания и рейтинг — у Лизы в личке") -> InlineKeyboardButton:
+    return InlineKeyboardButton(text, url=private_link(bot))
 
 
 def menu_markup(svc: Services, user_id: int) -> InlineKeyboardMarkup:
@@ -50,20 +50,31 @@ def menu_markup(svc: Services, user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def reminder_text(svc: Services, task: Task, now: datetime) -> str:
-    subs = svc.tasks.subscribers(task.id)
-    tags = ", ".join(user_link(uid, st) for uid, st in subs)
-    done = [user_link(uid, st) for uid, st in subs if svc.tasks.done_today(uid, task.id, now)]
-    text = random.Random(pray_day(now)).choice(texts.TASK_CHECKIN_REMINDER).format(users=tags)
-    if done:
-        text += "\n\n✅ Отметились: " + ", ".join(done)
-    return text
+async def send_task_list(svc: Services, msg: Message, user: User) -> None:
+    await svc.reply(msg, texts.TASKS_MENU.format(user=mention(user)), reply_markup=menu_markup(svc, user.id),
+                    do_quote=False)
+
+
+async def cmd_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    svc = get_services(context)
+    msg = update.message
+    if update.effective_chat.type != Chat.PRIVATE:
+        await svc.reply(msg, texts.TASKS_PRIVATE_ONLY,
+                        reply_markup=InlineKeyboardMarkup([[private_button(context.bot)]]))
+        return
+    if not await svc.access.private_allowed(context.bot, update.effective_user.id):
+        await svc.reply(msg, texts.PRIVATE_DENIED)
+        return
+    await send_task_list(svc, msg, update.effective_user)
+
+
+def reminder_text(task: Task, name: str) -> str:
+    return random.choice(texts.TASK_CHECKIN_REMINDER).format(user=name or "милый")
 
 
 def reminder_markup(task: Task, day: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Я отметился(-ась) у Паймон", callback_data=f"tasks:done:{task.id}:{day}")],
-        [MENU_BUTTON],
     ])
 
 
@@ -71,15 +82,21 @@ async def on_task_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     svc = get_services(context)
     query = update.callback_query
     user = query.from_user
-    if not query.message or query.message.chat.id != svc.settings.pray_chat_id:
-        await query.answer(texts.TASKS_WRONG_CHAT, show_alert=True)
+    if not query.message:
+        await query.answer()
+        return
+    if query.message.chat.type != Chat.PRIVATE:
+        # Старые кнопки в группе: сразу открыть личку с Лизой
+        await query.answer(url=private_link(context.bot))
+        return
+    if not await svc.access.private_allowed(context.bot, user.id):
+        await query.answer(texts.PRIVATE_DENIED, show_alert=True)
         return
 
     action, *args = query.data.removeprefix("tasks:").split(":")
     if action == "menu":
         await query.answer()
-        await svc.reply(query.message, texts.TASKS_MENU.format(user=mention(user)),
-                        reply_markup=menu_markup(svc, user.id))
+        await send_task_list(svc, query.message, user)
     elif action in ("sub", "close"):
         owner = int(args[-1])
         if owner != user.id:
@@ -122,20 +139,29 @@ async def _confirm(svc: Services, query, user: User, task: Task | None, day: str
         return
     await svc.tasks.save_user(user.id)
     await svc.pray.save_user(user.id)
-    await query.answer(texts.TASK_REWARD.format(reward=task.reward, left=svc.pray.prays_left(user.id)),
-                       show_alert=True)
-    with contextlib.suppress(BadRequest):  # «message is not modified»
-        await query.edit_message_text(reminder_text(svc, task, now), parse_mode=ParseMode.HTML,
-                                      reply_markup=reminder_markup(task, day))
+    left = svc.pray.prays_left(user.id)
+    await query.answer(texts.TASK_REWARD.format(reward=task.reward, left=left), show_alert=True)
+    with contextlib.suppress(BadRequest):  # кнопку убираем — второй раз нажимать нечего
+        await query.edit_message_text(f"{query.message.text}\n\n" + texts.TASK_DONE_NOTE.format(left=left))
 
 
-async def send_reminder(bot: Bot, svc: Services, task: Task, now: datetime) -> None:
+async def send_reminders(bot: Bot, svc: Services, task: Task, now: datetime) -> None:
+    """Личное напоминание каждому записавшемуся, кто ещё не выполнил задание и состоит в чатах Лизы."""
     day = pray_day(now)
-    if svc.tasks.subscribers(task.id):
-        msg = await bot.send_message(svc.settings.pray_chat_id, reminder_text(svc, task, now),
-                                     parse_mode=ParseMode.HTML, reply_markup=reminder_markup(task, day))
-        await svc.sent.track(msg)
-        log.info("Напоминание «%s» за %s: %d участников", task.title, day, len(svc.tasks.subscribers(task.id)))
+    sent = 0
+    for uid, st in svc.tasks.subscribers(task.id):
+        if svc.tasks.done_today(uid, task.id, now) or not await svc.access.private_allowed(bot, int(uid)):
+            continue
+        try:
+            await bot.send_message(int(uid), reminder_text(task, st.get("name", "")),
+                                   reply_markup=reminder_markup(task, day))
+            sent += 1
+        except Forbidden as e:  # заблокировал бота
+            log.info("Напоминание «%s» для %s не доставлено: %s", task.title, uid, e)
+        except TelegramError as e:
+            log.warning("Напоминание «%s» для %s не отправлено: %r", task.title, uid, e)
+        await asyncio.sleep(SEND_PAUSE)
+    log.info("Напоминание «%s» за %s: отправлено %d", task.title, day, sent)
     await svc.tasks.set_reminded(task.id, day)
 
 
@@ -149,7 +175,7 @@ async def remind_daily(bot: Bot, svc: Services, task: Task = CHECKIN) -> None:
         due = reminder_at(now.astimezone(RESET_TZ).date())
         try:
             if now >= due and await asyncio.to_thread(svc.tasks.reminded_day, task.id) != pray_day(now):
-                await send_reminder(bot, svc, task, now)
+                await send_reminders(bot, svc, task, now)
         except Exception:
             log.exception("Напоминание «%s» не отправлено, повтор через минуту", task.title)
             await asyncio.sleep(60)

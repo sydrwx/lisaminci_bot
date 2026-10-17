@@ -88,9 +88,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     chat_id = update.effective_chat.id
     key = (chat_id, update.effective_user.id)
     admin = is_admin(update.effective_user, svc.settings.admin_usernames)
-    label = svc.access.label(update.effective_user.id)
-    log.info("[%s%s%s] thread=%s: %s", describe_user(update.effective_user),
-             f" «{label}»" if label else "", " (админ)" if admin else "", msg.message_thread_id, query[:60])
+    log.info("[%s%s] thread=%s: %s", describe_user(update.effective_user),
+             " (админ)" if admin else "", msg.message_thread_id, query[:60])
 
     # IP прокси вне подсети (периодическая проверка) или прокси не отвечает прямо сейчас
     if not await svc.akasha.available():

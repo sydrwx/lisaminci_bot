@@ -2,7 +2,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 from bot.pray import PrayStore
-from bot.tasks import CHECKIN, Done, TaskStore, next_reminder, user_link
+from bot.tasks import CHECKIN, Done, TaskStore, next_reminder
 from common.state import StateStore
 from tests.fakes import FakeCollection
 
@@ -66,11 +66,6 @@ def test_next_reminder_at_19_utc3():
     assert next_reminder(NOW) == datetime(2026, 10, 18, 16, 0, tzinfo=UTC)
 
 
-def test_user_link_escapes_name():
-    assert user_link("5", {"name": "<b>"}) == '<a href="tg://user?id=5">&lt;b&gt;</a>'
-    assert user_link("5", {"username": "lisa"}) == '<a href="tg://user?id=5">@lisa</a>'
-
-
 def test_all_done_today():
     _, _, tasks = make()
     assert not tasks.all_done_today(1, NOW)  # ни на что не записан
@@ -86,7 +81,7 @@ def test_alert_texts_fit_telegram_limit():
     limits = [t.format(user="@very_long_username_xx", wait="10 ч 59 мин")
               for t in (*texts.PRAY_LIMIT, *texts.PRAY_LIMIT_TASKS_DONE)]
     alerts = [*texts.TASK_ALREADY, texts.TASK_NOT_SUBSCRIBED, texts.TASK_EXPIRED, texts.TASKS_NOT_YOURS,
-              texts.TASKS_WRONG_CHAT, texts.TASK_REWARD.format(reward=1, left=99), *limits,
+              texts.TASK_REWARD.format(reward=1, left=99), *limits,
               texts.PRAY_NO_BANNER, texts.PRAY_WRONG_CHAT, texts.PRAYSTATS_EMPTY, texts.RESET,
               texts.DELETE_DENIED, texts.DELETE_DONE, texts.DELETE_NOTHING, texts.PRIVATE_DENIED, texts.FOREIGN_CHAT]
     assert all(len(a) <= 200 for a in alerts)

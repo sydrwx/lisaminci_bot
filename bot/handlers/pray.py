@@ -1,6 +1,6 @@
 """Молитвы и рейтинг: кнопки меню (см. handlers/menu.py) и старые /pray, /praystats.
 
-Работают только в PRAY_CHAT_ID и без Claude.
+Молитва — только в PRAY_CHAT_ID, рейтинг — только в личке; без Claude.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import logging
 import random
 from datetime import UTC, datetime
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, User
+from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, Update, User
 from telegram.ext import ContextTypes
 
 from bot import texts
@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 PRAY_BUTTON = InlineKeyboardButton("🙏 Помолиться", callback_data="menu:pray")
 STATS_BUTTON = InlineKeyboardButton("📜 Рейтинг молитв", callback_data="menu:stats")
-PRAY_MARKUP = InlineKeyboardMarkup([[PRAY_BUTTON, STATS_BUTTON]])  # под результатом молитвы и рейтингом
+PRAY_MARKUP = InlineKeyboardMarkup([[PRAY_BUTTON]])  # под результатом молитвы в группе
 
 
 def limit_text(svc: Services, user: User) -> str:
@@ -76,8 +76,11 @@ async def cmd_pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_praystats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     svc = get_services(context)
     msg = update.message
-    if update.effective_chat.id != svc.settings.pray_chat_id:
-        await svc.reply(msg, texts.PRAYSTATS_WRONG_CHAT)
+    if update.effective_chat.type != Chat.PRIVATE:  # рейтинг — только в личке
+        await svc.reply(msg, texts.PRAYSTATS_PRIVATE_ONLY, reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("📜 Рейтинг — у Лизы в личке", url=f"https://t.me/{context.bot.username}?start=stats")]]))
         return
-    text = rating_text(svc, update.effective_user.id)
-    await svc.reply(msg, text or texts.PRAYSTATS_EMPTY, reply_markup=PRAY_MARKUP if text else None)
+    if not await svc.access.private_allowed(context.bot, update.effective_user.id):
+        await svc.reply(msg, texts.PRIVATE_DENIED)
+        return
+    await svc.reply(msg, rating_text(svc, update.effective_user.id) or texts.PRAYSTATS_EMPTY)
