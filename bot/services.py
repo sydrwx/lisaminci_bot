@@ -108,7 +108,7 @@ def build_services(settings: Settings) -> Services:
         banners=BannerStore(state),
         dialogs=Dialogs(),
         sent=SentMessages(state),
-        pray=PrayStore(state, settings.pray_bonus_users),
+        pray=PrayStore(state, settings.pray_bonus_users, settings.pray_daily_limit),
         access=Access(settings.allowed_chats, settings.allowed_users),
         akasha=akasha,
     )
