@@ -36,7 +36,7 @@ def private_link(bot: Bot, start: str = "tasks") -> str:
     return f"https://t.me/{bot.username}?start={start}"
 
 
-def private_button(bot: Bot, text: str = "💌 Задания и рейтинг — у Лизы в личке") -> InlineKeyboardButton:
+def private_button(bot: Bot, text: str = "📚 В библиотеку к Лизе: задания и рейтинг") -> InlineKeyboardButton:
     return InlineKeyboardButton(text, url=private_link(bot))
 
 

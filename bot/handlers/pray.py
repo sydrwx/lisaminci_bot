@@ -31,7 +31,12 @@ PRAY_MARKUP = InlineKeyboardMarkup([[PRAY_BUTTON]])  # под результат
 def limit_text(svc: Services, user: User) -> str:
     wait = format_wait(until_reset(datetime.now(UTC)))
     log.info("Молитва %s: лимит на сегодня исчерпан", describe_user(user))
-    variants = texts.PRAY_LIMIT_TASKS_DONE if svc.tasks.all_done_today(user.id) else texts.PRAY_LIMIT
+    if svc.tasks.all_done_today(user.id):
+        variants = texts.PRAY_LIMIT_TASKS_DONE
+    elif svc.tasks.user(user.id).get("tasks"):
+        variants = texts.PRAY_LIMIT_TASK_PENDING
+    else:
+        variants = texts.PRAY_LIMIT_INVITE
     return random.choice(variants).format(user=mention(user), wait=wait)
 
 
@@ -96,7 +101,7 @@ async def cmd_praystats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
     if chat.type != Chat.PRIVATE:  # остальным рейтинг — только в личке
         await svc.reply(msg, texts.PRAYSTATS_PRIVATE_ONLY, reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton("📜 Рейтинг — у Лизы в личке", url=f"https://t.me/{context.bot.username}?start=stats")]]))
+            InlineKeyboardButton("📚 В библиотеку к Лизе", url=f"https://t.me/{context.bot.username}?start=stats")]]))
         return
     if not await svc.access.private_allowed(context.bot, user.id):
         await svc.reply(msg, texts.PRIVATE_DENIED)
