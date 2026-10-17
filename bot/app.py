@@ -10,11 +10,12 @@ from telegram.ext import Application
 from bot import handlers
 from bot.akasha import watch_network
 from bot.config import BOT_NAME, Settings
+from bot.handlers.tasks import remind_daily
 from bot.services import BOT_DATA_KEY, Services, build_services
 
 log = logging.getLogger(__name__)
 
-ALLOWED_UPDATES = ["message", "edited_message", "channel_post", "my_chat_member"]
+ALLOWED_UPDATES = ["message", "edited_message", "channel_post", "my_chat_member", "callback_query"]
 
 
 def setup_logging() -> None:
@@ -28,6 +29,7 @@ async def _post_init(app: Application) -> None:
     app.bot_data["tasks"] = [
         asyncio.create_task(svc.akasha.watch_ip()),
         asyncio.create_task(watch_network(app.bot, svc.akasha, svc.settings.net_check_interval)),
+        asyncio.create_task(remind_daily(app.bot, svc)),
     ]
     await asyncio.to_thread(svc.title_index.find, "")  # прогреть индекс названий
     try:

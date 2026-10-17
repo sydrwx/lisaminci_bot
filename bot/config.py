@@ -47,6 +47,7 @@ class Settings:
     admin_usernames: frozenset[str]    # кому разрешено /delete
     pray_chat_id: int                  # где работают /pray и /praystats (0 — нигде)
     pray_bonus_users: frozenset[str]   # бонусный шанс на Джинн
+    pray_daily_limit: int              # молитв в сутки (сброс в 00:00 UTC+3), без бонусных
 
     ip_check_interval: int             # сек, пока IP в порядке
     ip_recheck_interval: int           # сек, пока Акаша недоступен
@@ -75,6 +76,7 @@ class Settings:
             admin_usernames=_usernames(env("ADMIN_USERNAMES", "")),
             pray_chat_id=int(env("PRAY_CHAT_ID", "0")),
             pray_bonus_users=_usernames(env("PRAY_BONUS_USERS", "")),
+            pray_daily_limit=int(env("PRAY_DAILY_LIMIT", "1")),
             ip_check_interval=int(env("IP_CHECK_INTERVAL", "300")),
             ip_recheck_interval=int(env("IP_RECHECK_INTERVAL", "60")),
             proxy_check_timeout=float(env("PROXY_CHECK_TIMEOUT", "3")),

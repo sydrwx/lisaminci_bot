@@ -18,6 +18,7 @@ from bot.game_info import BannerStore
 from bot.messaging import SentMessages, send_reply
 from bot.pray import PrayStore
 from bot.retrieval import Retriever, load_chat_topics
+from bot.tasks import TaskStore
 from bot.titles import TitleIndex, collection_titles
 from common.db import TG_COLLECTION, get_collection, get_embedding_function
 from common.state import StateStore
@@ -40,6 +41,7 @@ class Services:
     dialogs: Dialogs
     sent: SentMessages
     pray: PrayStore
+    tasks: TaskStore
     access: Access
     akasha: Akasha
 
@@ -96,6 +98,7 @@ def build_services(settings: Settings) -> Services:
 
     state = StateStore.connect()
 
+    pray = PrayStore(state, settings.pray_bonus_users, settings.pray_daily_limit)
     system_prompt = prompt.build_system_prompt(prompt.load_private_lines(settings.private_prompt_file))
     return Services(
         settings=settings,
@@ -108,7 +111,8 @@ def build_services(settings: Settings) -> Services:
         banners=BannerStore(state),
         dialogs=Dialogs(),
         sent=SentMessages(state),
-        pray=PrayStore(state, settings.pray_bonus_users),
+        pray=pray,
+        tasks=TaskStore(state, pray),
         access=Access(settings.allowed_chats, settings.allowed_users),
         akasha=akasha,
     )
