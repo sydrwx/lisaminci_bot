@@ -57,7 +57,8 @@ async def cmd_pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def _reply_limit(svc, msg, user) -> None:
     wait = format_wait(until_reset(datetime.now(UTC)))
     log.info("/pray %s: лимит на сегодня исчерпан", describe_user(user))
-    await svc.reply(msg, random.choice(texts.PRAY_LIMIT).format(user=mention(user), wait=wait))
+    variants = texts.PRAY_LIMIT_TASKS_DONE if svc.tasks.all_done_today(user.id) else texts.PRAY_LIMIT
+    await svc.reply(msg, random.choice(variants).format(user=mention(user), wait=wait))
 
 
 async def cmd_praystats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -118,7 +118,7 @@ async def _confirm(svc: Services, query, user: User, task: Task | None, day: str
     if result is not Done.OK:
         await query.answer({Done.NOT_SUBSCRIBED: texts.TASK_NOT_SUBSCRIBED,
                             Done.EXPIRED: texts.TASK_EXPIRED,
-                            Done.ALREADY: texts.TASK_ALREADY}[result], show_alert=True)
+                            Done.ALREADY: random.choice(texts.TASK_ALREADY)}[result], show_alert=True)
         return
     await svc.tasks.save_user(user.id)
     await svc.pray.save_user(user.id)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import html
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from enum import Enum
 
 from bot.pray import RESET_TZ, PrayStore, pray_day
@@ -84,6 +84,12 @@ class TaskStore:
 
     def done_today(self, user_id: int | str, task_id: str, now: datetime) -> bool:
         return self.state.get(str(user_id), {}).get("done", {}).get(task_id) == pray_day(now)
+
+    def all_done_today(self, user_id: int, now: datetime | None = None) -> bool:
+        """Записан хотя бы на одно задание, и все они на сегодня выполнены."""
+        now = now or datetime.now(UTC)
+        tasks = [t for t in self.user(user_id).get("tasks", []) if t in TASKS]
+        return bool(tasks) and all(self.done_today(user_id, t, now) for t in tasks)
 
     def complete(self, user_id: int, task_id: str, day: str, now: datetime) -> Done:
         """Подтверждение задания за сутки day; при успехе начисляет молитвы.
