@@ -1,6 +1,7 @@
 """Служебное состояние в отдельной коллекции ChromaDB (STATE_COLLECTION).
 
-Бот: молитвы (pray:<user_id>), id сообщений для /delete (sent:<chat_id>).
+Бот: молитвы (pray:<user_id>), задания (tasks:<user_id>), id сообщений для /delete (sent:<chat_id>),
+история диалогов (dialog:<chat_id>:<user_id>).
 Updater: состояние синхронизации (updater:<коллекция>), молитвы и события «сейчас»
 для бота (banners:current).
 
@@ -52,6 +53,13 @@ class StateStore:
             await asyncio.to_thread(self._upsert, kind, key, doc)
         except Exception as e:
             log.warning("Не удалось сохранить %s:%s в базу: %r", kind, key, e)
+
+    async def delete(self, kind: str, key: str) -> None:
+        """Удалить запись (в отдельном потоке); сбой — только в лог."""
+        try:
+            await asyncio.to_thread(self._col.delete, ids=[f"{kind}:{key}"])
+        except Exception as e:
+            log.warning("Не удалось удалить %s:%s из базы: %r", kind, key, e)
 
     def _upsert(self, kind: str, key: str, doc: str) -> None:
         self._col.upsert(ids=[f"{kind}:{key}"], documents=[doc], metadatas=[{"kind": kind}],

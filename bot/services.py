@@ -109,7 +109,7 @@ def build_services(settings: Settings) -> Services:
         title_index=title_index,
         retriever=retriever,
         banners=BannerStore(state),
-        dialogs=Dialogs(),
+        dialogs=Dialogs(state),
         sent=SentMessages(state),
         pray=pray,
         tasks=TaskStore(state, pray),

@@ -28,7 +28,7 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_access(update, context):
         return
     svc = get_services(context)
-    svc.dialogs.reset((update.effective_chat.id, update.effective_user.id))  # только в текущем чате
+    await svc.dialogs.reset((update.effective_chat.id, update.effective_user.id))  # только в текущем чате
     await svc.reply(update.message, texts.RESET)
 
 

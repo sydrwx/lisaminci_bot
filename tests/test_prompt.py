@@ -1,6 +1,10 @@
+import asyncio
+
 from bot.dialogs import Dialogs
 from bot.prompt import build_messages, build_system_prompt, load_private_lines
 from bot.topics import Topic
+from common.state import StateStore
+from tests.fakes import FakeCollection
 
 
 def test_private_lines_skip_comments_and_blanks(tmp_path):
@@ -25,11 +29,27 @@ def test_build_messages_caches_history_and_attaches_context():
 def test_dialogs_keep_last_pairs_and_topic():
     d = Dialogs(max_pairs=2)
     for i in range(3):
-        d.remember((1, 1), f"q{i}", f"a{i}", Topic.TG)
+        asyncio.run(d.remember((1, 1), f"q{i}", f"a{i}", Topic.TG))
     assert [m["content"] for m in d.history((1, 1))] == ["q1", "a1", "q2", "a2"]
     assert d.last_topic((1, 1)) is Topic.TG
-    d.reset((1, 1))
+    asyncio.run(d.reset((1, 1)))
     assert d.history((1, 1)) == [] and d.last_topic((1, 1)) is None
+
+
+def test_dialogs_survive_restart_and_reset_clears_db():
+    store = StateStore(FakeCollection())
+    d = Dialogs(store, max_pairs=2)
+    asyncio.run(d.remember((-100123, 5), "q", "a", Topic.TG))
+    asyncio.run(d.remember((7, 7), "q2", "a2", Topic.GENSHIN))
+    restored = Dialogs(store, max_pairs=2)
+    assert [m["content"] for m in restored.history((-100123, 5))] == ["q", "a"]
+    assert restored.last_topic((-100123, 5)) is Topic.TG
+    asyncio.run(restored.reset((-100123, 5)))
+    again = Dialogs(store, max_pairs=2)
+    assert again.history((-100123, 5)) == [] and again.last_topic((-100123, 5)) is None
+    assert again.history((7, 7))  # другие диалоги не задеты
+    # MAX_HISTORY уменьшили — при загрузке лишнее отрезается
+    assert len(Dialogs(store, max_pairs=1).history((7, 7))) == 2
 
 
 def test_confidentiality_in_prompt_and_admin_note_only_for_admin():
