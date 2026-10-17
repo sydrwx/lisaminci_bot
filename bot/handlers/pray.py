@@ -18,7 +18,7 @@ from telegram.ext import ContextTypes
 
 from bot import texts
 from bot.messaging import describe_user, is_admin, mention
-from bot.pray import format_rating, format_wait, until_reset
+from bot.pray import format_rating, format_wait, has_prayers, until_reset
 from bot.services import Services, get_services
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ PUBLIC = 0  # user_id для рейтинга без личной строки
 
 
 def rating_text(svc: Services, user_id: int) -> str | None:
-    return format_rating(svc.pray.state, user_id) if svc.pray.state else None
+    return format_rating(svc.pray.state, user_id) if has_prayers(svc.pray.state) else None
 
 
 async def cmd_pray(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

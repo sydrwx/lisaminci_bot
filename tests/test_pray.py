@@ -112,3 +112,15 @@ def test_until_reset():
     assert until_reset(datetime(2026, 10, 17, 21, 0, tzinfo=UTC)) == timedelta(days=1)
     assert format_wait(timedelta(hours=5, minutes=12)) == "5 ч 12 мин"
     assert format_wait(timedelta(seconds=30)) == "1 мин"
+
+
+def test_rating_skips_users_without_prayers():
+    from bot.pray import has_prayers
+    state = {
+        "1": {"username": "a", "total": 3, "stats": {"3": 3}, "pity5": 3},
+        "2": new_user_state() | {"extra": 1},  # бонус за задание, но не молился
+    }
+    text = format_rating(state, user_id=2)
+    assert "@2" not in text and "Ты на" not in text
+    assert text.splitlines()[1].startswith("🥇 @a")
+    assert not has_prayers({"2": state["2"]}) and has_prayers(state)
