@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from telegram import BotCommand
 from telegram.ext import Application
 
 from bot import handlers
@@ -32,6 +33,11 @@ async def _post_init(app: Application) -> None:
         asyncio.create_task(remind_daily(app.bot, svc)),
     ]
     await asyncio.to_thread(svc.title_index.find, "")  # прогреть индекс названий
+    try:
+        # Вместо команд — кнопки меню; в списке команд Telegram остаётся только /menu
+        await app.bot.set_my_commands([BotCommand("menu", "Меню Лизы")])
+    except Exception as e:
+        log.warning("Не удалось обновить список команд: %s", e)
     try:
         if (await app.bot.get_my_name()).name != BOT_NAME:
             await app.bot.set_my_name(BOT_NAME)

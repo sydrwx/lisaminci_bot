@@ -1,27 +1,20 @@
-"""/start, /reset, /delete."""
+"""/reset, /delete (кнопки тех же действий и /start — в handlers/menu.py)."""
 
 from __future__ import annotations
 
 import contextlib
 import logging
 
-from telegram import Update
+from telegram import Bot, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from bot import texts
 from bot.handlers.common import check_access
 from bot.messaging import describe_user, is_admin
-from bot.services import get_services
+from bot.services import Services, get_services
 
 log = logging.getLogger(__name__)
-
-
-async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not await check_access(update, context):
-        return
-    svc = get_services(context)
-    await svc.reply(update.message, texts.START.format(chunks=svc.collection.count()))
 
 
 async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -30,6 +23,20 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     svc = get_services(context)
     await svc.dialogs.reset((update.effective_chat.id, update.effective_user.id))  # только в текущем чате
     await svc.reply(update.message, texts.RESET)
+
+
+async def delete_last(svc: Services, bot: Bot, chat_id: int) -> int | None:
+    """Удалить последнее сообщение Лизы в чате; вернёт его id или None, если удалять нечего."""
+    deleted = None
+    while deleted is None and (message_id := svc.sent.pop(chat_id)) is not None:
+        try:
+            await bot.delete_message(chat_id, message_id)
+            deleted = message_id
+        except TelegramError as e:
+            # уже удалено вручную или старше 48 ч — пробуем предыдущее
+            log.warning("Удаление: сообщение %s не удалено: %s", message_id, e)
+    await svc.sent.save(chat_id)
+    return deleted
 
 
 async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -43,15 +50,7 @@ async def cmd_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await svc.reply(msg, texts.DELETE_DENIED)
         return
 
-    deleted = None
-    while deleted is None and (message_id := svc.sent.pop(chat_id)) is not None:
-        try:
-            await context.bot.delete_message(chat_id, message_id)
-            deleted = message_id
-        except TelegramError as e:
-            # уже удалено вручную или старше 48 ч — пробуем предыдущее
-            log.warning("/delete: сообщение %s не удалено: %s", message_id, e)
-    await svc.sent.save(chat_id)
+    deleted = await delete_last(svc, context.bot, chat_id)
 
     # Саму команду тоже убираем (в группе — если у бота есть право удалять сообщения)
     with contextlib.suppress(TelegramError):

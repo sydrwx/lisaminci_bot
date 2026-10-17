@@ -1,4 +1,4 @@
-"""Задания Лизы: /tasks, кнопки записи и подтверждения, напоминание в 19:00 (UTC+3).
+"""Задания Лизы: кнопка «Задания Лизы» (и старая /tasks), кнопки записи и подтверждения, напоминание в 19:00 (UTC+3).
 
 Работают только в PRAY_CHAT_ID и без Claude. Данные кнопок:
   tasks:menu               — открыть свой список заданий
@@ -44,7 +44,7 @@ def menu_markup(svc: Services, user_id: int) -> InlineKeyboardMarkup:
     rows = []
     for task in TASKS.values():
         mark = "✅" if svc.tasks.is_subscribed(user_id, task.id) else "➕"
-        rows.append([InlineKeyboardButton(f"{mark} {task.title} (+{task.reward} к /pray)",
+        rows.append([InlineKeyboardButton(f"{mark} {task.title} (+{task.reward} молитва)",
                                           callback_data=f"tasks:sub:{task.id}:{user_id}")])
     rows.append([InlineKeyboardButton("✖ Закрыть", callback_data=f"tasks:close:{user_id}")])
     return InlineKeyboardMarkup(rows)

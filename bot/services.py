@@ -43,6 +43,7 @@ class Services:
     pray: PrayStore
     tasks: TaskStore
     access: Access
+    state: StateStore           # служебные записи без отдельного хранилища (закреплённое меню)
     akasha: Akasha
 
     async def reply(self, msg: Message, text: str, **kwargs) -> Message | None:
@@ -114,5 +115,6 @@ def build_services(settings: Settings) -> Services:
         pray=pray,
         tasks=TaskStore(state, pray),
         access=Access(settings.allowed_chats, settings.allowed_users),
+        state=state,
         akasha=akasha,
     )
